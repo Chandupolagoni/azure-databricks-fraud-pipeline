@@ -1,0 +1,41 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Databricks
+.databricks/
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Secrets / local config
+.env
+*.pem
+*.key
+secrets.*
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/

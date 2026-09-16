@@ -1,0 +1,86 @@
+{
+  "name": "pl_ingest_raw_transactions",
+  "properties": {
+    "description": "Copies daily card-transaction, core-banking, and digital-channel event files from the landing zone into ADLS Gen2 raw/, partitioned by ingest_date. Triggered daily and on storage events for near-real-time card-auth files.",
+    "parameters": {
+      "ingestDate": {
+        "type": "String",
+        "defaultValue": "@formatDateTime(utcNow(), 'yyyy-MM-dd')"
+      },
+      "sourceSystem": {
+        "type": "String",
+        "defaultValue": "core-banking"
+      }
+    },
+    "activities": [
+      {
+        "name": "LookupSourceFileManifest",
+        "type": "Lookup",
+        "typeProperties": {
+          "source": {
+            "type": "JsonSource",
+            "storeSettings": {
+              "type": "AzureBlobFSReadSettings",
+              "recursive": false
+            }
+          },
+          "dataset": {
+            "referenceName": "ds_landing_manifest",
+            "type": "DatasetReference"
+          }
+        }
+      },
+      {
+        "name": "ForEachSourceFile",
+        "type": "ForEach",
+        "dependsOn": [
+          { "activity": "LookupSourceFileManifest", "dependencyConditions": ["Succeeded"] }
+        ],
+        "typeProperties": {
+          "items": {
+            "value": "@activity('LookupSourceFileManifest').output.value",
+            "type": "Expression"
+          },
+          "isSequential": false,
+          "batchCount": 8,
+          "activities": [
+            {
+              "name": "CopyToRawZone",
+              "type": "Copy",
+              "typeProperties": {
+                "source": { "type": "DelimitedTextSource", "storeSettings": { "type": "AzureBlobStorageReadSettings" } },
+                "sink": {
+                  "type": "DelimitedTextSink",
+                  "storeSettings": {
+                    "type": "AzureBlobFSWriteSettings",
+                    "copyBehavior": "PreserveHierarchy"
+                  }
+                },
+                "enableStaging": false
+              },
+              "inputs": [{ "referenceName": "ds_landing_source_file", "type": "DatasetReference" }],
+              "outputs": [{ "referenceName": "ds_adls_raw_zone", "type": "DatasetReference" }]
+            }
+          ]
+        }
+      },
+      {
+        "name": "LogIngestionAudit",
+        "type": "SqlServerStoredProcedure",
+        "dependsOn": [
+          { "activity": "ForEachSourceFile", "dependencyConditions": ["Succeeded"] }
+        ],
+        "typeProperties": {
+          "storedProcedureName": "[dbo].[sp_log_ingestion_run]",
+          "storedProcedureParameters": {
+            "pipelineName": { "value": "pl_ingest_raw_transactions", "type": "String" },
+            "ingestDate": { "value": "@pipeline().parameters.ingestDate", "type": "String" },
+            "sourceSystem": { "value": "@pipeline().parameters.sourceSystem", "type": "String" },
+            "runId": { "value": "@pipeline().RunId", "type": "String" }
+          }
+        }
+      }
+    ],
+    "annotations": ["fraud-platform", "bronze-ingestion"]
+  }
+}

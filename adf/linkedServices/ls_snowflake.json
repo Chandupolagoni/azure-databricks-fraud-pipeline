@@ -1,0 +1,14 @@
+{
+  "name": "ls_snowflake",
+  "properties": {
+    "type": "Snowflake",
+    "typeProperties": {
+      "connectionString": "jdbc:snowflake://<account_locator>.snowflakecomputing.com/?db=FRAUD_PLATFORM&warehouse=WH_LOADER&role=PIPELINE_LOADER",
+      "password": {
+        "type": "AzureKeyVaultSecret",
+        "store": { "referenceName": "ls_key_vault", "type": "LinkedServiceReference" },
+        "secretName": "snowflake-loader-password"
+      }
+    }
+  }
+}

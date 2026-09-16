@@ -1,0 +1,18 @@
+name: fraud-risk-classifier
+
+python_env: python_env.yaml
+
+entry_points:
+  train:
+    parameters:
+      synthetic: {type: bool, default: true}
+      delta_path: {type: str, default: ""}
+      labels_path: {type: str, default: ""}
+    command: >
+      python ../src/train.py
+      {"--synthetic" if synthetic else "--delta-path " + delta_path + " --labels-path " + labels_path}
+
+  score:
+    parameters:
+      stage: {type: str, default: "Production"}
+    command: "python ../src/inference.py --stage {stage}"

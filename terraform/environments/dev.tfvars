@@ -1,0 +1,20 @@
+environment  = "dev"
+location     = "eastus2"
+project_name = "fraudplatform"
+
+adls_replication_type = "LRS"
+
+vnet_address_space              = ["10.20.0.0/16"]
+databricks_public_subnet_cidr   = "10.20.1.0/24"
+databricks_private_subnet_cidr  = "10.20.2.0/24"
+private_endpoint_subnet_cidr    = "10.20.3.0/24"
+
+databricks_sku = "premium"
+key_vault_sku  = "standard"
+
+tags = {
+  project     = "azure-databricks-fraud-pipeline"
+  owner       = "data-engineering"
+  environment = "dev"
+  cost_center = "risk-analytics"
+}

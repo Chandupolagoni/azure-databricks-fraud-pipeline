@@ -1,0 +1,19 @@
+{
+  "name": "tr_daily_schedule",
+  "properties": {
+    "type": "ScheduleTrigger",
+    "typeProperties": {
+      "recurrence": {
+        "frequency": "Day",
+        "interval": 1,
+        "startTime": "2025-01-01T05:00:00Z",
+        "timeZone": "UTC"
+      }
+    },
+    "pipelines": [
+      {
+        "pipelineReference": { "referenceName": "pl_orchestrate_full_pipeline", "type": "PipelineReference" }
+      }
+    ]
+  }
+}

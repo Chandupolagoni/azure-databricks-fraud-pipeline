@@ -1,0 +1,17 @@
+{
+  "name": "ds_landing_source_file",
+  "properties": {
+    "linkedServiceName": { "referenceName": "ls_landing_blob", "type": "LinkedServiceReference" },
+    "type": "DelimitedText",
+    "typeProperties": {
+      "location": {
+        "type": "AzureBlobStorageLocation",
+        "container": "landing",
+        "folderPath": "@item().sourceSystem"
+      },
+      "columnDelimiter": ",",
+      "firstRowAsHeader": true
+    },
+    "schema": []
+  }
+}

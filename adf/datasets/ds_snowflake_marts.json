@@ -1,0 +1,12 @@
+{
+  "name": "ds_snowflake_marts",
+  "properties": {
+    "linkedServiceName": { "referenceName": "ls_snowflake", "type": "LinkedServiceReference" },
+    "type": "SnowflakeTable",
+    "typeProperties": {
+      "schema": "MARTS",
+      "table": "FCT_TRANSACTIONS"
+    },
+    "schema": []
+  }
+}

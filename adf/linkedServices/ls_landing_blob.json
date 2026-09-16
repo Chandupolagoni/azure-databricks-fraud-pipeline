@@ -1,0 +1,13 @@
+{
+  "name": "ls_landing_blob",
+  "properties": {
+    "type": "AzureBlobStorage",
+    "typeProperties": {
+      "connectionString": {
+        "type": "AzureKeyVaultSecret",
+        "store": { "referenceName": "ls_key_vault", "type": "LinkedServiceReference" },
+        "secretName": "landing-storage-connection-string"
+      }
+    }
+  }
+}

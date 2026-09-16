@@ -1,0 +1,66 @@
+{
+  "name": "pl_orchestrate_full_pipeline",
+  "properties": {
+    "description": "Parent orchestration pipeline: ingest raw files, run the Databricks Bronze->Silver->Gold job, then trigger the Snowflake mart refresh task. Runs on the daily schedule trigger (see triggers/tr_daily_schedule.json).",
+    "activities": [
+      {
+        "name": "IngestRawTransactions",
+        "type": "ExecutePipeline",
+        "typeProperties": {
+          "pipeline": { "referenceName": "pl_ingest_raw_transactions", "type": "PipelineReference" },
+          "waitOnCompletion": true
+        }
+      },
+      {
+        "name": "RunDatabricksMedallionJob",
+        "type": "DatabricksNotebook",
+        "dependsOn": [
+          { "activity": "IngestRawTransactions", "dependencyConditions": ["Succeeded"] }
+        ],
+        "typeProperties": {
+          "notebookPath": "/Repos/fraud-platform/databricks/notebooks/00_run_all",
+          "baseParameters": {
+            "run_date": "@formatDateTime(utcNow(), 'yyyy-MM-dd')"
+          }
+        },
+        "linkedServiceName": { "referenceName": "ls_databricks", "type": "LinkedServiceReference" }
+      },
+      {
+        "name": "TriggerSnowflakeMartRefresh",
+        "type": "Lookup",
+        "dependsOn": [
+          { "activity": "RunDatabricksMedallionJob", "dependencyConditions": ["Succeeded"] }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "SnowflakeSource",
+            "sqlReaderQuery": "EXECUTE TASK marts.task_refresh_marts;"
+          },
+          "dataset": { "referenceName": "ds_snowflake_marts", "type": "DatasetReference" }
+        }
+      },
+      {
+        "name": "NotifyOnFailure",
+        "type": "WebActivity",
+        "dependsOn": [
+          { "activity": "TriggerSnowflakeMartRefresh", "dependencyConditions": ["Failed"] },
+          { "activity": "RunDatabricksMedallionJob", "dependencyConditions": ["Failed"] },
+          { "activity": "IngestRawTransactions", "dependencyConditions": ["Failed"] }
+        ],
+        "typeProperties": {
+          "url": "@pipeline().parameters.alertWebhookUrl",
+          "method": "POST",
+          "body": {
+            "pipeline": "pl_orchestrate_full_pipeline",
+            "runId": "@pipeline().RunId",
+            "status": "Failed"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "alertWebhookUrl": { "type": "String", "defaultValue": "@{pipeline().globalParameters.opsAlertWebhook}" }
+    },
+    "annotations": ["fraud-platform", "orchestration"]
+  }
+}

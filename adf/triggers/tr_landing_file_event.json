@@ -1,0 +1,19 @@
+{
+  "name": "tr_landing_file_event",
+  "properties": {
+    "type": "BlobEventsTrigger",
+    "typeProperties": {
+      "blobPathBeginsWith": "/landing/card-auth/",
+      "blobPathEndsWith": ".csv",
+      "ignoreEmptyBlobs": true,
+      "scope": "/subscriptions/<subscription_id>/resourceGroups/rg-fraudplatform-prod/providers/Microsoft.Storage/storageAccounts/stlandingfraudplatform",
+      "events": ["Microsoft.Storage.BlobCreated"]
+    },
+    "pipelines": [
+      {
+        "pipelineReference": { "referenceName": "pl_ingest_raw_transactions", "type": "PipelineReference" },
+        "parameters": { "sourceSystem": "card-auth" }
+      }
+    ]
+  }
+}
