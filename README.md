@@ -72,6 +72,10 @@ terraform apply -var-file=environments/dev.tfvars
 
 See [`docs/runbook.md`](docs/runbook.md) for the full deployment and operations runbook, including Snowflake and Databricks post-provisioning steps.
 
+## Practicing/demoing without a full Azure deployment
+
+`databricks/notebooks/free_edition/` has drop-in equivalents of the medallion notebooks that run on [Databricks Free Edition](https://www.databricks.com/learn/free-edition) against Unity Catalog volumes instead of ADLS Gen2 — useful for validating the PySpark transformation logic and grabbing screenshots without provisioning any Azure infrastructure. See [`docs/free_edition_practice.md`](docs/free_edition_practice.md).
+
 ## Data flow (medallion architecture)
 
 1. **Bronze** – raw transaction, card, and customer events land in ADLS Gen2 `raw/` via ADF copy activities, schema-on-read, append-only Delta tables.
