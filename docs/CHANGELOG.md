@@ -4,7 +4,20 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 - Planned: Databricks Model Serving endpoint wiring for real-time inference
-- Planned: windowed fraud-velocity features computed directly on the new streaming Bronze table
+
+## 2026-09-18 — Windowed fraud-velocity features on the streaming Bronze table
+- Added `databricks/src/transformations/streaming_fraud_features.py`: sliding-window
+  transaction count/sum/distinct-merchant-category aggregation per account
+  (`add_windowed_velocity_features`), a spike-candidate flag on top of it
+  (`add_velocity_spike_flag`), and a watermark-bounded append-mode Delta sink
+  (`write_windowed_features_stream`)
+- Added `databricks/notebooks/06_streaming_fraud_velocity_features.py`: reads the streaming
+  Bronze card-authorization table from `05_streaming_card_auth_ingestion.py`, applies the same
+  late-arrival watermark, and writes windowed velocity features directly on the stream instead
+  of waiting for the next `04_feature_engineering.py` batch run; closes the previously-planned
+  "windowed fraud-velocity features on the new streaming Bronze table" item
+- Added `tests/test_streaming_fraud_features.py` covering the windowed aggregation and the
+  spike-flag thresholds
 
 ## 2026-09-16 — Streaming card-authorization ingestion (prototype)
 - Added `databricks/src/utils/streaming_io.py`: Auto Loader (`cloudFiles`) read helper with a
