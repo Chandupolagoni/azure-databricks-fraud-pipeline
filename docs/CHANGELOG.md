@@ -3,7 +3,20 @@
 All notable changes to this project are documented here. Dates are the week the increment landed.
 
 ## [Unreleased]
-- Planned: Databricks Model Serving endpoint wiring for real-time inference
+- Planned: model-quality drift monitor comparing live `FRAUD_RISK_SCORES` outcomes back to the AUC-PR promotion gate
+
+## 2026-09-19 — Databricks Model Serving endpoint for real-time inference
+- Added `ml/src/serving.py`: deploys the registered `fraud-risk-classifier` model behind a
+  Databricks Model Serving endpoint (`build_endpoint_config`, `deploy_serving_endpoint` —
+  create-or-update against the current `Production` version, `wait_until_ready`) and a
+  synchronous scoring helper (`build_scoring_payload`, `score_transaction`) for authorization-time
+  calls, mirroring `inference.py::score_batch`'s batch path
+- Added `databricks-sdk==0.28.0` to `requirements.txt`
+- Updated `architecture.md`'s Machine Learning section to point at the now-deployed real-time
+  path instead of describing it as documented-but-not-deployed
+- Added `tests/test_serving.py` covering the endpoint config shape, scoring payload
+  validation, and the create-vs-update deploy branch (mocked `WorkspaceClient`, no live
+  workspace required)
 
 ## 2026-09-18 — Windowed fraud-velocity features on the streaming Bronze table
 - Added `databricks/src/transformations/streaming_fraud_features.py`: sliding-window

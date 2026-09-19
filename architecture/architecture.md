@@ -34,7 +34,7 @@ Private endpoints + service endpoints restrict access to the VNet; a firewall ru
 ### 5. Machine Learning
 - Feature set: Gold-layer fraud features, joined with historical labeled fraud outcomes.
 - Model: gradient-boosted classifier (XGBoost), tracked with MLflow (params, metrics, artifacts), promoted through `Staging` → `Production` in the MLflow Model Registry based on precision/recall/AUC-PR gates.
-- Inference: batch scoring job writes `p_fraud` back to a Delta table and to `MARTS.FRAUD_RISK_SCORES`; a real-time path (documented, not deployed here) would front the registered model with a Databricks Model Serving endpoint.
+- Inference: batch scoring job writes `p_fraud` back to a Delta table and to `MARTS.FRAUD_RISK_SCORES`; a real-time path (`ml/src/serving.py`) deploys the same registered model behind a Databricks Model Serving endpoint (`fraud-risk-classifier-endpoint`) for synchronous scoring at authorization time.
 
 ### 6. Infrastructure as Code — Terraform
 Modular layout (`terraform/modules/*`) for resource group, networking (VNet, subnets, private endpoints), ADLS Gen2, Databricks workspace (VNet-injected), Key Vault (secret scopes backing Databricks + Snowflake credentials), and ADF. Environments (`dev`, `prod`) are separated by tfvars files and remote state keyed by environment.

@@ -2,9 +2,9 @@
 scores the latest Gold `fraud_features`, writing results back to Delta and to
 Snowflake `MARTS.FRAUD_RISK_SCORES` (via the Snowflake connector).
 
-A real-time path would instead front this same registered model with a Databricks
-Model Serving endpoint invoked synchronously at authorization time; documented in
-architecture.md but not deployed in this reference implementation.
+A real-time path fronts this same registered model with a Databricks Model Serving
+endpoint invoked synchronously at authorization time instead; see `serving.py` for
+the endpoint deploy + scoring helpers.
 """
 
 import argparse
