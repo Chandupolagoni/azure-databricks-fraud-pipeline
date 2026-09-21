@@ -3,7 +3,26 @@
 All notable changes to this project are documented here. Dates are the week the increment landed.
 
 ## [Unreleased]
-- Planned: model-quality drift monitor comparing live `FRAUD_RISK_SCORES` outcomes back to the AUC-PR promotion gate
+- Planned: on-call alert routing for `monitor_drift.py` (wire `build_drift_alert_message` into the
+  ETL job's existing `email_notifications` channel instead of a print-only check)
+
+## 2026-09-21 — Live model-quality drift monitor
+- Added `snowflake/ddl/05_create_fraud_outcomes.sql`: `MARTS.CONFIRMED_FRAUD_OUTCOMES` table for
+  ground-truth fraud outcomes reconciled after the chargeback/dispute window closes, plus
+  `VW_RECONCILED_SCORED_TRANSACTIONS`, a view joining it back against `FRAUD_RISK_SCORES` to the
+  exact population the drift monitor scores against
+- Added `ml/src/monitor_drift.py`: pulls the trailing reconciled window from that view
+  (`load_reconciled_scores_from_snowflake`), recomputes live AUC-PR with the same
+  `evaluate.py::evaluate_predictions` used at training time (`compute_live_auc_pr`, skipping
+  silently below `MIN_RECONCILED_SAMPLES` to avoid a false alarm on a thin sample), and compares
+  it back against `train.py`'s `PROMOTION_AUC_PR_THRESHOLD` promotion gate with a tolerance band
+  (`check_promotion_gate_drift`) so live degradation is caught between scheduled retrains rather
+  than only at the next training run; `build_drift_alert_message` formats the on-call-facing alert
+  body, matching the ETL job's existing failure-alert tone; closes the previously-planned
+  "model-quality drift monitor" item
+- Added `tests/test_model_drift.py` covering the min-sample skip, both drifted/not-drifted branches
+  of the gate comparison, the alert message contents, and the end-to-end `run_drift_check` flow
+  (mocked Snowflake connector, no live warehouse required)
 
 ## 2026-09-19 — Databricks Model Serving endpoint for real-time inference
 - Added `ml/src/serving.py`: deploys the registered `fraud-risk-classifier` model behind a
