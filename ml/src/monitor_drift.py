@@ -91,6 +91,30 @@ def build_drift_alert_message(
     )
 
 
+class DriftAlertError(RuntimeError):
+    """Raised by `raise_if_drifted` to fail the run when live drift is detected.
+
+    A Databricks job task that raises exits non-zero, which trips the job's own
+    `email_notifications.on_failure` channel (see `databricks/jobs/drift_monitor_job_config.json`)
+    — the same alerting path already used for ETL task failures — so the alert actually
+    reaches on-call instead of only ever showing up in a print statement inside the run's logs.
+    """
+
+
+def raise_if_drifted(
+    drift_result: dict, model_version: str, window_days: int, sample_size: int
+) -> None:
+    """Fails the run with the formatted alert body as the exception message when
+    `drift_result["drifted"]` is True. A no-op otherwise, so a clean run exits 0 as normal.
+    """
+    if not drift_result["drifted"]:
+        return
+
+    raise DriftAlertError(
+        build_drift_alert_message(drift_result, model_version, window_days, sample_size)
+    )
+
+
 def load_reconciled_scores_from_snowflake(connection_params: dict, window_days: int = 30) -> pd.DataFrame:
     """Pulls the trailing `window_days` of reconciled scores from
     `MARTS.VW_RECONCILED_SCORED_TRANSACTIONS` via the Snowflake Python connector.
@@ -149,5 +173,6 @@ if __name__ == "__main__":
     metrics = compute_live_auc_pr(synthetic_reconciled)
     drift = check_promotion_gate_drift(metrics)
     print(drift)
-    if drift["drifted"]:
-        print(build_drift_alert_message(drift, "Production", args.window_days, len(synthetic_reconciled)))
+    # Failing the run (rather than only printing) is what makes the job's
+    # email_notifications.on_failure channel actually fire on drift.
+    raise_if_drifted(drift, "Production", args.window_days, len(synthetic_reconciled))
