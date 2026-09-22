@@ -12,9 +12,11 @@ pytest.importorskip("sklearn")
 from monitor_drift import (  # noqa: E402
     DRIFT_TOLERANCE,
     PROMOTION_AUC_PR_THRESHOLD,
+    DriftAlertError,
     build_drift_alert_message,
     check_promotion_gate_drift,
     compute_live_auc_pr,
+    raise_if_drifted,
     run_drift_check,
 )
 
@@ -112,3 +114,30 @@ def test_run_drift_check_returns_result_with_model_version_and_window():
     assert result["window_days"] == 14
     assert result["sample_size"] == 400
     assert result["drifted"] is True
+
+
+def test_raise_if_drifted_raises_with_alert_body_when_drifted():
+    drift_result = check_promotion_gate_drift({"auc_pr": 0.40})
+
+    with pytest.raises(DriftAlertError) as exc_info:
+        raise_if_drifted(drift_result, model_version="7", window_days=30, sample_size=512)
+
+    assert "fraud-risk-classifier" in str(exc_info.value)
+    assert "512" in str(exc_info.value)
+
+
+def test_raise_if_drifted_is_a_noop_when_not_drifted():
+    drift_result = check_promotion_gate_drift({"auc_pr": PROMOTION_AUC_PR_THRESHOLD + 0.1})
+
+    raise_if_drifted(drift_result, model_version="7", window_days=30, sample_size=512)
+
+
+def test_run_drift_check_result_raises_via_raise_if_drifted_end_to_end():
+    reconciled = _reconciled_frame(400, separable=False)
+    with patch("monitor_drift.load_reconciled_scores_from_snowflake", return_value=reconciled):
+        result = run_drift_check(connection_params={}, window_days=14)
+
+    with pytest.raises(DriftAlertError):
+        raise_if_drifted(
+            result, result["model_version"], result["window_days"], result["sample_size"]
+        )

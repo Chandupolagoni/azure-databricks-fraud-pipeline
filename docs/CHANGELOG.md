@@ -3,8 +3,22 @@
 All notable changes to this project are documented here. Dates are the week the increment landed.
 
 ## [Unreleased]
-- Planned: on-call alert routing for `monitor_drift.py` (wire `build_drift_alert_message` into the
-  ETL job's existing `email_notifications` channel instead of a print-only check)
+- Planned: provision `drift_monitor_job_config.json` as an actually-scheduled Databricks job
+  (currently config-only, same as `job_config.json`) once job deployment is wired into CI
+
+## 2026-09-22 — Drift monitor now fails the job instead of only printing
+
+- Added `raise_if_drifted` and a `DriftAlertError` exception to `ml/src/monitor_drift.py`: when
+  `check_promotion_gate_drift` flags live degradation, the run now raises with
+  `build_drift_alert_message`'s formatted body as the exception message instead of only printing
+  it, so the Databricks job task exits non-zero and trips the job's own
+  `email_notifications.on_failure` channel — closes the previously-planned on-call alert routing
+  item
+- Added `databricks/jobs/drift_monitor_job_config.json`: a single-node scheduled job config for
+  `monitor_drift.py`, running daily after the main ETL job with `email_notifications.on_failure`
+  routed to the same `data-eng-alerts@example.com` address as `job_config.json`
+- Added `tests/test_model_drift.py` coverage for `raise_if_drifted` (raises with the alert body
+  when drifted, no-ops otherwise) and an end-to-end `run_drift_check` → `raise_if_drifted` case
 
 ## 2026-09-21 — Live model-quality drift monitor
 - Added `snowflake/ddl/05_create_fraud_outcomes.sql`: `MARTS.CONFIRMED_FRAUD_OUTCOMES` table for

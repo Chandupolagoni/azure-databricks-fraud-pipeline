@@ -1,0 +1,41 @@
+{
+  "name": "fraud-risk-classifier-drift-monitor",
+  "tags": {
+    "project": "fraud-platform",
+    "layer": "ml-ops"
+  },
+  "job_clusters": [
+    {
+      "job_cluster_key": "drift_monitor_cluster",
+      "new_cluster": {
+        "spark_version": "14.3.x-scala2.12",
+        "node_type_id": "Standard_DS3_v2",
+        "policy_id": "{{cluster_policy_id}}",
+        "num_workers": 0,
+        "spark_conf": {
+          "spark.databricks.cluster.profile": "singleNode",
+          "spark.master": "local[*]"
+        }
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "task_key": "drift_check",
+      "job_cluster_key": "drift_monitor_cluster",
+      "spark_python_task": {
+        "python_file": "/Repos/fraud-platform/ml/src/monitor_drift.py",
+        "parameters": ["--window-days", "30"]
+      }
+    }
+  ],
+  "schedule": {
+    "quartz_cron_expression": "0 0 7 * * ?",
+    "timezone_id": "UTC",
+    "pause_status": "UNPAUSED"
+  },
+  "email_notifications": {
+    "on_failure": ["data-eng-alerts@example.com"]
+  },
+  "max_concurrent_runs": 1
+}
