@@ -13,7 +13,11 @@
 3. **Populate Key Vault secrets** (out-of-band, not via Terraform state): Snowflake loader password, landing storage connection string, Databricks PAT for ADF's linked service.
 4. **Databricks workspace bootstrap**:
    - Attach this repo via Databricks Repos (`/Repos/fraud-platform`)
-   - Create the job from `databricks/jobs/job_config.json` (`databricks jobs create --json-file databricks/jobs/job_config.json`)
+   - Job deployment (`databricks/jobs/job_config.json` and `databricks/jobs/drift_monitor_job_config.json`) is handled by the
+     `Deploy Databricks Jobs` GitHub Actions workflow on every push to `main` that touches either file
+     (`scripts/deploy_databricks_jobs.py`, create-or-update via the Jobs API keyed on job name) — no manual `databricks jobs create` needed
+     after the first `main` push that carries this bootstrap step; requires the `DATABRICKS_HOST`, `DATABRICKS_TOKEN`,
+     `DATABRICKS_CLUSTER_POLICY_ID` and `DATABRICKS_STORAGE_ACCOUNT` repo secrets to be set first
    - Create the secret scope backed by Key Vault (`databricks secrets create-scope --scope fraud-platform-kv-scope --scope-backend-type AZURE_KEYVAULT ...`)
 5. **Snowflake bootstrap** (run in order):
    ```bash
