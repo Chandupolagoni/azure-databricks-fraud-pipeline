@@ -3,8 +3,26 @@
 All notable changes to this project are documented here. Dates are the week the increment landed.
 
 ## [Unreleased]
-- Planned: provision `drift_monitor_job_config.json` as an actually-scheduled Databricks job
-  (currently config-only, same as `job_config.json`) once job deployment is wired into CI
+
+## 2026-09-23 — Wire Databricks job deployment into CI
+
+- Added `scripts/deploy_databricks_jobs.py`: reads every job config JSON under `databricks/jobs/`
+  (`job_config.json`, `drift_monitor_job_config.json`), substitutes their `{{cluster_policy_id}}`
+  / `{{storage_account}}` template placeholders from env vars (`render_job_config`), and
+  create-or-updates each job via the Databricks Jobs API keyed on job name (`find_existing_job_id`
+  + `deploy_job` — `jobs/create` if the name isn't found, `jobs/reset` in place if it is), so
+  re-running on every push to `main` updates existing jobs instead of creating duplicates
+- Added `.github/workflows/deploy-databricks-jobs.yml`: runs the new script on push to `main`
+  when either a job config or the script itself changes, using `DATABRICKS_HOST`,
+  `DATABRICKS_TOKEN`, `DATABRICKS_CLUSTER_POLICY_ID` and `DATABRICKS_STORAGE_ACCOUNT` repo
+  secrets — closes the "provision `drift_monitor_job_config.json` as an actually-scheduled job
+  once job deployment is wired into CI" item that had been sitting under Unreleased
+- Added `requests==2.32.3` to `requirements.txt` (direct dependency of the new deploy script)
+- Updated `docs/runbook.md`'s "Databricks workspace bootstrap" step to point at the new CI-driven
+  deployment instead of the old manual `databricks jobs create --json-file ...` step
+- Added `tests/test_deploy_databricks_jobs.py` covering placeholder substitution (including the
+  missing-env-var error and the no-placeholder no-op case), job lookup by exact name match, and
+  the create-vs-reset branch of `deploy_job` (mocked `requests`, no live workspace required)
 
 ## 2026-09-22 — Drift monitor now fails the job instead of only printing
 
