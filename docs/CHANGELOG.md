@@ -4,6 +4,20 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-09-24 — Merchant risk triage view for fraud-ops
+
+- Added `snowflake/ddl/06_create_merchant_risk_view.sql`: `MARTS.VW_MERCHANT_RISK_SUMMARY`
+  joins the static, offline-recomputed `DIM_MERCHANT.merchant_risk_score` against a rolling
+  trailing-30-day flagged rate from `FCT_TRANSACTIONS`/`FRAUD_RISK_SCORES`, plus a
+  `risk_score_divergence` column (live rate minus historical score) and a `risk_tier`
+  bucket (`INSUFFICIENT_VOLUME` / `NORMAL` / `ELEVATED` / `HIGH`) so fraud-ops can spot a
+  merchant trending hot before the next offline score recompute catches up to it
+- Added `MARTS.VW_MERCHANT_RISK_TRIAGE_QUEUE` on top of it — `ELEVATED`/`HIGH` merchants only,
+  worst flagged rate first — as the day's merchant review list
+- Updated `docs/runbook.md`'s Snowflake bootstrap sequence to include the new DDL file, and
+  added a Daily operation note pointing fraud-ops at the triage queue query
+- Updated `docs/data_dictionary.md` with column definitions for both new views
+
 ## 2026-09-23 — Wire Databricks job deployment into CI
 
 - Added `scripts/deploy_databricks_jobs.py`: reads every job config JSON under `databricks/jobs/`

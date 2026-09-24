@@ -25,6 +25,8 @@
    snowsql -f snowflake/ddl/02_create_raw_tables.sql
    snowsql -f snowflake/ddl/03_create_curated_tables.sql
    snowsql -f snowflake/ddl/04_create_marts.sql
+   snowsql -f snowflake/ddl/05_create_fraud_outcomes.sql
+   snowsql -f snowflake/ddl/06_create_merchant_risk_view.sql
    snowsql -f snowflake/procedures/sp_load_fraud_marts.sql
    snowsql -f snowflake/snowpipe/pipe_transactions.sql
    snowsql -f snowflake/tasks/task_refresh_marts.sql
@@ -37,6 +39,7 @@
 - `tr_daily_schedule` fires `pl_orchestrate_full_pipeline` at 05:00 UTC.
 - On failure, `NotifyOnFailure` posts to the ops webhook; check the ADF pipeline run in the Azure portal for the failing activity, then the corresponding Databricks job run for stack traces.
 - Snowpipe ingestion lag can be checked with `SELECT * FROM TABLE(INFORMATION_SCHEMA.PIPE_USAGE_HISTORY(...))`.
+- Fraud-ops merchant review: `SELECT * FROM FRAUD_PLATFORM.MARTS.VW_MERCHANT_RISK_TRIAGE_QUEUE` lists merchants whose trailing 30-day flagged rate is `ELEVATED` or `HIGH`, worst first — this is the "merchants to review today" list. A merchant sitting at `HIGH` with a large `risk_score_divergence` (live rate far above `historical_risk_score`) is a candidate for an out-of-band `DIM_MERCHANT.merchant_risk_score` update ahead of the next offline recompute.
 
 ## Retraining the fraud model
 
