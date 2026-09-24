@@ -31,3 +31,19 @@
 ## Snowflake: `MARTS.FCT_TRANSACTIONS`, `MARTS.FRAUD_RISK_SCORES`
 
 See DDL in `snowflake/ddl/04_create_marts.sql` for full column definitions. `FRAUD_RISK_SCORES.p_fraud` is the model's predicted fraud probability (0–1); `is_flagged` is `p_fraud >= 0.5` at the current decision threshold (see `ml/models/model_card.md`).
+
+## Snowflake: `MARTS.VW_MERCHANT_RISK_SUMMARY`, `MARTS.VW_MERCHANT_RISK_TRIAGE_QUEUE`
+
+Per-merchant rollup joining the static `DIM_MERCHANT.merchant_risk_score` against a rolling
+trailing-30-day flagged rate computed from `FCT_TRANSACTIONS`/`FRAUD_RISK_SCORES`. See DDL in
+`snowflake/ddl/06_create_merchant_risk_view.sql`.
+
+| Column | Type | Description |
+|---|---|---|
+| historical_risk_score | float | Static, offline-recomputed `DIM_MERCHANT.merchant_risk_score` |
+| flagged_rate_30d | float | Trailing 30-day share of this merchant's transactions flagged by the model |
+| risk_score_divergence | float | `flagged_rate_30d - historical_risk_score`; large positive values mean live risk has outrun the static score |
+| risk_tier | string | `INSUFFICIENT_VOLUME` (<20 txns in window), `NORMAL`, `ELEVATED` (>=0.03), or `HIGH` (>=0.10) flagged rate |
+
+`VW_MERCHANT_RISK_TRIAGE_QUEUE` is `VW_MERCHANT_RISK_SUMMARY` filtered to `ELEVATED`/`HIGH` and
+sorted worst-first — see `docs/runbook.md`'s Daily operation section.
