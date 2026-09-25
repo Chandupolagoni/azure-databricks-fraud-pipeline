@@ -4,6 +4,30 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-09-25 — Chargeback reconciliation feed populates CONFIRMED_FRAUD_OUTCOMES
+
+- Added `snowflake/ddl/07_create_chargeback_outcomes_feed.sql`: `RAW.RAW_CHARGEBACK_OUTCOMES`
+  table plus a `STG_RAW_CHARGEBACKS` external stage over a new `raw/chargebacks/` landing path,
+  and `STAGING.STRM_RAW_CHARGEBACK_OUTCOMES` (append-only stream, resolved disputes only)
+- Added `snowflake/snowpipe/pipe_chargeback_outcomes.sql`: `PIPE_RAW_CHARGEBACK_OUTCOMES`,
+  auto-ingesting network settlement files via the existing `ADLS_EVENT_GRID_INT` notification
+  integration, mirroring `pipe_transactions.sql`'s split from its RAW table DDL
+- Added `snowflake/procedures/sp_reconcile_fraud_outcomes.sql`: `SP_RECONCILE_FRAUD_OUTCOMES`
+  merges the latest resolved outcome per transaction from the stream into
+  `MARTS.CONFIRMED_FRAUD_OUTCOMES` (issuer-confirmed fraud flag, `'chargeback:<network>'`
+  outcome source), joined against `FCT_TRANSACTIONS` so an outcome for a not-yet-ingested
+  transaction is skipped and picked up on a later run instead of erroring on the FK
+- Added `snowflake/tasks/task_reconcile_fraud_outcomes.sql`: `TASK_RECONCILE_FRAUD_OUTCOMES`,
+  stream-triggered with a daily 06:30 UTC schedule as a safety net, matching
+  `TASK_REFRESH_MARTS`'s pattern — closes the gap where `05_create_fraud_outcomes.sql`'s
+  `CONFIRMED_FRAUD_OUTCOMES` table existed (feeding `ml/src/monitor_drift.py`'s live drift
+  check) but nothing had ever populated it
+- Updated `docs/runbook.md`'s Snowflake bootstrap sequence with the new DDL/procedure/pipe/task
+  files, added a Daily operation note on the reconciliation cadence, and a Common incidents row
+  for a stalled `TASK_RECONCILE_FRAUD_OUTCOMES`
+- Updated `docs/data_dictionary.md` with column definitions for `RAW_CHARGEBACK_OUTCOMES` and
+  `CONFIRMED_FRAUD_OUTCOMES`
+
 ## 2026-09-24 — Merchant risk triage view for fraud-ops
 
 - Added `snowflake/ddl/06_create_merchant_risk_view.sql`: `MARTS.VW_MERCHANT_RISK_SUMMARY`

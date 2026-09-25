@@ -27,9 +27,13 @@
    snowsql -f snowflake/ddl/04_create_marts.sql
    snowsql -f snowflake/ddl/05_create_fraud_outcomes.sql
    snowsql -f snowflake/ddl/06_create_merchant_risk_view.sql
+   snowsql -f snowflake/ddl/07_create_chargeback_outcomes_feed.sql
    snowsql -f snowflake/procedures/sp_load_fraud_marts.sql
+   snowsql -f snowflake/procedures/sp_reconcile_fraud_outcomes.sql
    snowsql -f snowflake/snowpipe/pipe_transactions.sql
+   snowsql -f snowflake/snowpipe/pipe_chargeback_outcomes.sql
    snowsql -f snowflake/tasks/task_refresh_marts.sql
+   snowsql -f snowflake/tasks/task_reconcile_fraud_outcomes.sql
    ```
 6. **ADF**: import `adf/pipelines`, `adf/datasets`, `adf/linkedServices`, `adf/triggers` via the ADF `Publish` workflow or `az datafactory` CLI; update the Snowflake/landing linked service connection strings to point at the real Key Vault secrets.
 7. **Publish the daily trigger**: `az datafactory trigger start --trigger-name tr_daily_schedule ...`
@@ -40,6 +44,7 @@
 - On failure, `NotifyOnFailure` posts to the ops webhook; check the ADF pipeline run in the Azure portal for the failing activity, then the corresponding Databricks job run for stack traces.
 - Snowpipe ingestion lag can be checked with `SELECT * FROM TABLE(INFORMATION_SCHEMA.PIPE_USAGE_HISTORY(...))`.
 - Fraud-ops merchant review: `SELECT * FROM FRAUD_PLATFORM.MARTS.VW_MERCHANT_RISK_TRIAGE_QUEUE` lists merchants whose trailing 30-day flagged rate is `ELEVATED` or `HIGH`, worst first — this is the "merchants to review today" list. A merchant sitting at `HIGH` with a large `risk_score_divergence` (live rate far above `historical_risk_score`) is a candidate for an out-of-band `DIM_MERCHANT.merchant_risk_score` update ahead of the next offline recompute.
+- Chargeback reconciliation: `TASK_RECONCILE_FRAUD_OUTCOMES` merges resolved dispute outcomes from `RAW.RAW_CHARGEBACK_OUTCOMES` into `MARTS.CONFIRMED_FRAUD_OUTCOMES` (daily at 06:30 UTC, or as soon as a settlement file lands via `PIPE_RAW_CHARGEBACK_OUTCOMES`). This is what feeds the live drift monitor (`ml/src/monitor_drift.py`) — if `VW_RECONCILED_SCORED_TRANSACTIONS` stops growing day over day, check `SHOW TASKS LIKE 'TASK_RECONCILE_FRAUD_OUTCOMES'` and `SELECT SYSTEM$PIPE_STATUS('PIPE_RAW_CHARGEBACK_OUTCOMES')` before assuming the model itself has gone quiet on drift.
 
 ## Retraining the fraud model
 
@@ -59,3 +64,4 @@ Review the MLflow run in the tracking UI; if `auc_pr` clears the gate the model 
 | Databricks job stuck / OOM | Skewed partition or undersized job cluster | Check Spark UI stage metrics; consider raising `autoscale.max_workers` in `job_config.json` |
 | Snowpipe not ingesting new files | Event Grid notification integration misconfigured | `ALTER PIPE ... REFRESH` to manually backfill, then check the notification integration |
 | `TASK_REFRESH_MARTS` not running | Task suspended or stream has no new data | `SHOW TASKS`, `SELECT SYSTEM$STREAM_HAS_DATA(...)` |
+| `CONFIRMED_FRAUD_OUTCOMES` not growing | `TASK_RECONCILE_FRAUD_OUTCOMES` suspended, or no settlement files have landed in `raw/chargebacks/` | `SHOW TASKS LIKE 'TASK_RECONCILE_FRAUD_OUTCOMES'`; `ALTER PIPE PIPE_RAW_CHARGEBACK_OUTCOMES REFRESH` to manually backfill |
