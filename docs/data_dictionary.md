@@ -47,3 +47,22 @@ trailing-30-day flagged rate computed from `FCT_TRANSACTIONS`/`FRAUD_RISK_SCORES
 
 `VW_MERCHANT_RISK_TRIAGE_QUEUE` is `VW_MERCHANT_RISK_SUMMARY` filtered to `ELEVATED`/`HIGH` and
 sorted worst-first — see `docs/runbook.md`'s Daily operation section.
+
+## Snowflake: `RAW.RAW_CHARGEBACK_OUTCOMES`, `MARTS.CONFIRMED_FRAUD_OUTCOMES`
+
+Card-network chargeback/dispute settlement feed and the ground-truth table it reconciles into.
+See DDL in `snowflake/ddl/07_create_chargeback_outcomes_feed.sql` and
+`snowflake/ddl/05_create_fraud_outcomes.sql`, and the merge logic in
+`snowflake/procedures/sp_reconcile_fraud_outcomes.sql`.
+
+| Column | Type | Description |
+|---|---|---|
+| network | string | Card network that filed the dispute (`VISA`, `MASTERCARD`, `AMEX`, `DISCOVER`) |
+| outcome | string | Dispute resolution (`MERCHANT_WON`, `MERCHANT_LOST`, `WITHDRAWN`) — not itself a fraud signal |
+| is_fraud_confirmed | boolean | Issuer-confirmed fraud outcome, distinct from a non-fraud dispute such as a billing error |
+| resolved_at | timestamp | When the issuer closed out the dispute; `NULL` while still open |
+| outcome_source (MARTS) | string | `'chargeback:<network>'` for every row reconciled through this feed |
+
+`CONFIRMED_FRAUD_OUTCOMES` only gains a row once a transaction both exists in
+`FCT_TRANSACTIONS` and has a `resolved_at` chargeback outcome — see `docs/runbook.md`'s Daily
+operation section for the reconciliation cadence.
