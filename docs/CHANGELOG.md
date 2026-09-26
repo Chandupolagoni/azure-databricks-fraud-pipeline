@@ -4,6 +4,20 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-09-26 — Input validation and direct unit tests for evaluate_predictions
+
+- Hardened `ml/src/evaluate.py::evaluate_predictions` — the metric function shared by
+  `train.py`'s promotion gate and `monitor_drift.py`'s live drift check — to raise a clear
+  `ValueError` on an empty `y_true`/`y_proba`, a length mismatch between the two, or a
+  `decision_threshold` outside `[0.0, 1.0]`, instead of letting a malformed upstream result
+  (a bad train/test split, a reconciled Snowflake window that came back misaligned) surface
+  as an opaque `sklearn`/`numpy` broadcast error several frames deeper
+- Added `tests/test_evaluate.py`: the function's first direct unit tests, covering a perfect
+  classifier, an all-below-threshold case (zero precision/recall without dividing by zero),
+  threshold sensitivity, the plain-Python-float return contract, and the three new validation
+  errors — closes a gap where `evaluate_predictions` was only ever exercised indirectly through
+  `test_model_drift.py`'s mocked drift-check flow
+
 ## 2026-09-25 — Chargeback reconciliation feed populates CONFIRMED_FRAUD_OUTCOMES
 
 - Added `snowflake/ddl/07_create_chargeback_outcomes_feed.sql`: `RAW.RAW_CHARGEBACK_OUTCOMES`
