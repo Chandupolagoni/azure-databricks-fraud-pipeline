@@ -4,6 +4,11 @@ project_name = "fraudplatform"
 
 adls_replication_type = "LRS"
 
+# Dev data churns fast and isn't retained for compliance, so tier/delete sooner than prod
+raw_zone_cool_tier_after_days = 14
+raw_zone_archive_after_days   = 30
+checkpoints_delete_after_days = 7
+
 vnet_address_space              = ["10.20.0.0/16"]
 databricks_public_subnet_cidr   = "10.20.1.0/24"
 databricks_private_subnet_cidr  = "10.20.2.0/24"

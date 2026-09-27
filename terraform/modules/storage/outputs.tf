@@ -17,3 +17,7 @@ output "curated_container_name" {
 output "checkpoints_container_name" {
   value = azurerm_storage_data_lake_gen2_filesystem.checkpoints.name
 }
+
+output "lifecycle_management_policy_id" {
+  value = azurerm_storage_management_policy.adls.id
+}

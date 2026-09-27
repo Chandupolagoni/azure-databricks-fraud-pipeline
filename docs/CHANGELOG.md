@@ -4,6 +4,25 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-09-27 — ADLS lifecycle management policy for raw zone and checkpoints
+
+- Added `azurerm_storage_management_policy` to `terraform/modules/storage/main.tf`: tiers
+  `raw/` zone blobs Hot → Cool (`raw_zone_cool_tier_after_days`, default 30) → Archive
+  (`raw_zone_archive_after_days`, default 90) as they age past the initial Bronze ingestion
+  window instead of paying Hot-tier rates indefinitely for immutable, rarely-read historical
+  data, and deletes stale `checkpoints/` blobs outright (`checkpoints_delete_after_days`,
+  default 14) since Structured Streaming checkpoints are transient operational state with no
+  business retention requirement; `curated/` (Silver + Gold) is intentionally left off the
+  policy since it's actively queried by Databricks jobs, Snowflake external tables, and
+  ad-hoc analysis
+- Wired the three new variables through `terraform/variables.tf` and `terraform/main.tf`,
+  and set environment-specific values in `dev.tfvars` (14/30/7 days — dev data churns fast
+  and isn't retained for compliance) and `prod.tfvars` (30/90/14 days — matches the raw
+  zone's financial-services data-handling requirements)
+- Added `lifecycle_management_policy_id` output to the storage module
+- Updated `architecture/architecture.md`'s Storage section and `docs/runbook.md` (a Daily
+  operation note plus a Common incidents row for finding raw-zone files already tiered down)
+
 ## 2026-09-26 — Input validation and direct unit tests for evaluate_predictions
 
 - Hardened `ml/src/evaluate.py::evaluate_predictions` — the metric function shared by

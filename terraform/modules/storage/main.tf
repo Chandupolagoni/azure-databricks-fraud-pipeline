@@ -64,3 +64,47 @@ resource "azurerm_storage_data_lake_gen2_path" "gold" {
   storage_account_id = azurerm_storage_account.adls.id
   resource           = "directory"
 }
+
+# Lifecycle management: the raw/ zone is immutable and append-only (see architecture.md),
+# so it ages predictably and is a good candidate for tiering down from Hot instead of paying
+# Hot-tier rates indefinitely for data that's rarely read after the initial Bronze ingestion
+# window. Structured Streaming checkpoints under checkpoints/ are transient operational state
+# with no business retention requirement, unlike raw/curated financial data, so they're deleted
+# outright once stale. curated/ (Silver + Gold) is intentionally left out of this policy since
+# it's actively queried by Databricks jobs, Snowflake external tables, and ad-hoc analysis.
+resource "azurerm_storage_management_policy" "adls" {
+  storage_account_id = azurerm_storage_account.adls.id
+
+  rule {
+    name    = "raw-zone-tiering"
+    enabled = true
+
+    filters {
+      prefix_match = ["raw/"]
+      blob_types   = ["blockBlob"]
+    }
+
+    actions {
+      base_blob {
+        tier_to_cool_after_days_since_modification_greater_than    = var.raw_zone_cool_tier_after_days
+        tier_to_archive_after_days_since_modification_greater_than = var.raw_zone_archive_after_days
+      }
+    }
+  }
+
+  rule {
+    name    = "checkpoints-cleanup"
+    enabled = true
+
+    filters {
+      prefix_match = ["checkpoints/"]
+      blob_types   = ["blockBlob"]
+    }
+
+    actions {
+      base_blob {
+        delete_after_days_since_modification_greater_than = var.checkpoints_delete_after_days
+      }
+    }
+  }
+}

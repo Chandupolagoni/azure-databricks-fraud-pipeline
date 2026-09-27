@@ -31,6 +31,10 @@ module "storage" {
   allowed_ip_ranges    = var.allowed_ip_ranges
   subnet_id_for_vnet_rule = module.networking.private_endpoint_subnet_id
   tags                 = var.tags
+
+  raw_zone_cool_tier_after_days = var.raw_zone_cool_tier_after_days
+  raw_zone_archive_after_days   = var.raw_zone_archive_after_days
+  checkpoints_delete_after_days = var.checkpoints_delete_after_days
 }
 
 module "key_vault" {

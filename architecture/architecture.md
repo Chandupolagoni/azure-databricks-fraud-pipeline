@@ -18,6 +18,7 @@ Hierarchical namespace with three logical zones inside one storage account, isol
 - `checkpoints/` — Structured Streaming / job checkpoints
 
 Private endpoints + service endpoints restrict access to the VNet; a firewall rule set default-denies public network access, consistent with financial-services data handling requirements.
+- Lifecycle management (`azurerm_storage_management_policy`) tiers `raw/` blobs Hot → Cool → Archive as they age (30/90 days in prod) and deletes stale `checkpoints/` blobs outright (14 days in prod) instead of paying Hot-tier rates indefinitely for immutable, rarely-read historical data; `curated/` is left on Hot since it's actively queried.
 
 ### 3. Transformation — Azure Databricks (PySpark + Delta Lake)
 - **Bronze**: schema-on-read ingestion of raw files into append-only Delta tables, with `_ingested_at`, `_source_file` audit columns.
