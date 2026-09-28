@@ -4,6 +4,21 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-09-28 — Direct unit tests for the synthetic data generator
+
+- Added `tests/test_generate_synthetic_data.py`: the first direct tests for
+  `scripts/generate_synthetic_data.py`, covering the raw transaction schema shape (field
+  order, card-number format, positive amounts, `acct_`/`dev_` id prefixes), that a given
+  `--seed` reproduces every field except `transaction_id` (a fresh `uuid4` on each call, by
+  design, so it's excluded from the determinism check rather than left to fail intermittently),
+  that different seeds vary the generated account sequence, that each `merchant_id` keeps a
+  single stable `merchant_category` across the run, that the returned category list has no
+  duplicates and matches what the rows actually used, and that `write_csv` creates missing
+  parent directories and round-trips row count and content correctly
+- Closes the gap where the Free Edition practice path
+  (`docs/free_edition_practice.md`) depended on this script's output matching the raw
+  transaction schema, but nothing verified that contract automatically
+
 ## 2026-09-27 — ADLS lifecycle management policy for raw zone and checkpoints
 
 - Added `azurerm_storage_management_policy` to `terraform/modules/storage/main.tf`: tiers
