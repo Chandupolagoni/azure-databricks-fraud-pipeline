@@ -4,6 +4,28 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-09-29 — Blob-service audit logging for the ADLS storage account
+
+- Added `terraform/modules/monitoring`: a `azurerm_log_analytics_workspace` plus an
+  `azurerm_monitor_diagnostic_setting` on the ADLS storage account's `blobServices/default`,
+  shipping `StorageRead`/`StorageWrite`/`StorageDelete` logs and `Transaction` metrics —
+  closes a gap where `architecture.md`'s Storage section described firewall/private-endpoint
+  access *restrictions* but nothing produced a queryable audit trail of what was actually
+  read, written, or deleted, which financial-services data handling requires alongside
+  access control
+- Wired the new module into `terraform/main.tf` (`module.monitoring`, fed
+  `module.storage.storage_account_id`), added `log_analytics_retention_days` to
+  `terraform/variables.tf` (default 90) and a `log_analytics_workspace_id` output to
+  `terraform/outputs.tf`
+- Set environment-specific retention in `dev.tfvars` (30 days — dev doesn't need a long
+  audit trail) and `prod.tfvars` (365 days — matches the raw zone's financial-services
+  data-handling requirements already reflected in the lifecycle policy)
+- Updated `architecture/architecture.md`'s Storage section, IaC section, and design
+  decisions, and `docs/runbook.md` with a deployment verification step, a Daily operation
+  note on querying `StorageBlobLogs`, and a Common incidents row for a missing diagnostic
+  setting
+
+
 ## 2026-09-28 — Direct unit tests for the synthetic data generator
 
 - Added `tests/test_generate_synthetic_data.py`: the first direct tests for

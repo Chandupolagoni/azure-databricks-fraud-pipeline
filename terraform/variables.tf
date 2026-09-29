@@ -92,3 +92,9 @@ variable "checkpoints_delete_after_days" {
   type        = number
   default     = 14
 }
+
+variable "log_analytics_retention_days" {
+  description = "Days Log Analytics retains ADLS storage-account audit logs. Financial-services audit trails need longer retention in prod than dev."
+  type        = number
+  default     = 90
+}

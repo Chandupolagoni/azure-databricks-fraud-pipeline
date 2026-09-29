@@ -9,6 +9,9 @@ raw_zone_cool_tier_after_days = 30
 raw_zone_archive_after_days   = 90
 checkpoints_delete_after_days = 14
 
+# Financial audit-trail retention requirement
+log_analytics_retention_days = 365
+
 vnet_address_space              = ["10.30.0.0/16"]
 databricks_public_subnet_cidr   = "10.30.1.0/24"
 databricks_private_subnet_cidr  = "10.30.2.0/24"
