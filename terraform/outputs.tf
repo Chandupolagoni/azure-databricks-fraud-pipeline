@@ -29,3 +29,7 @@ output "key_vault_uri" {
 output "data_factory_name" {
   value = module.adf.data_factory_name
 }
+
+output "log_analytics_workspace_id" {
+  value = module.monitoring.log_analytics_workspace_id
+}

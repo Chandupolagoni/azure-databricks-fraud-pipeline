@@ -19,6 +19,7 @@ Hierarchical namespace with three logical zones inside one storage account, isol
 
 Private endpoints + service endpoints restrict access to the VNet; a firewall rule set default-denies public network access, consistent with financial-services data handling requirements.
 - Lifecycle management (`azurerm_storage_management_policy`) tiers `raw/` blobs Hot → Cool → Archive as they age (30/90 days in prod) and deletes stale `checkpoints/` blobs outright (14 days in prod) instead of paying Hot-tier rates indefinitely for immutable, rarely-read historical data; `curated/` is left on Hot since it's actively queried.
+- Blob-service diagnostic logging (`azurerm_monitor_diagnostic_setting`, `terraform/modules/monitoring`) ships `StorageRead`/`StorageWrite`/`StorageDelete` audit logs plus transaction metrics to a dedicated Log Analytics workspace, so who read/wrote/deleted what is queryable after the fact — the firewall/private-endpoint rules above restrict *access*, this module supplies the *audit trail* financial-services data handling also requires.
 
 ### 3. Transformation — Azure Databricks (PySpark + Delta Lake)
 - **Bronze**: schema-on-read ingestion of raw files into append-only Delta tables, with `_ingested_at`, `_source_file` audit columns.
@@ -38,7 +39,7 @@ Private endpoints + service endpoints restrict access to the VNet; a firewall ru
 - Inference: batch scoring job writes `p_fraud` back to a Delta table and to `MARTS.FRAUD_RISK_SCORES`; a real-time path (`ml/src/serving.py`) deploys the same registered model behind a Databricks Model Serving endpoint (`fraud-risk-classifier-endpoint`) for synchronous scoring at authorization time.
 
 ### 6. Infrastructure as Code — Terraform
-Modular layout (`terraform/modules/*`) for resource group, networking (VNet, subnets, private endpoints), ADLS Gen2, Databricks workspace (VNet-injected), Key Vault (secret scopes backing Databricks + Snowflake credentials), and ADF. Environments (`dev`, `prod`) are separated by tfvars files and remote state keyed by environment.
+Modular layout (`terraform/modules/*`) for resource group, networking (VNet, subnets, private endpoints), ADLS Gen2, monitoring (Log Analytics workspace + storage diagnostic settings), Databricks workspace (VNet-injected), Key Vault (secret scopes backing Databricks + Snowflake credentials), and ADF. Environments (`dev`, `prod`) are separated by tfvars files and remote state keyed by environment.
 
 ### 7. CI/CD — GitHub Actions
 - `ci.yml`: lints (`ruff`/`black --check`) and runs PyTest unit tests on every push/PR.
@@ -49,4 +50,4 @@ Modular layout (`terraform/modules/*`) for resource group, networking (VNet, sub
 - **Medallion architecture** keeps raw data immutable and auditable — a hard requirement in regulated financial environments — while giving each downstream consumer (Snowflake, ML) a stable, quality-checked contract at the Gold layer.
 - **Delta Lake in ADLS + Snowflake external tables** avoids double-loading large raw volumes into Snowflake compute while still giving analysts a governed SQL layer.
 - **Databricks does the heavy transformation/ML**, Snowflake does governed serving/BI — playing each engine to its strength rather than picking one for everything.
-- **Terraform modules per concern** (storage, networking, databricks, key-vault, adf) keep the stack reusable across environments and reviewable in small PRs.
+- **Terraform modules per concern** (storage, networking, databricks, key-vault, adf, monitoring) keep the stack reusable across environments and reviewable in small PRs.

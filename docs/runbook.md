@@ -37,6 +37,7 @@
    ```
 6. **ADF**: import `adf/pipelines`, `adf/datasets`, `adf/linkedServices`, `adf/triggers` via the ADF `Publish` workflow or `az datafactory` CLI; update the Snowflake/landing linked service connection strings to point at the real Key Vault secrets.
 7. **Publish the daily trigger**: `az datafactory trigger start --trigger-name tr_daily_schedule ...`
+8. **Verify audit logging**: confirm the storage account's blob-service diagnostic setting landed against the new Log Analytics workspace: `az monitor diagnostic-settings list --resource <storage_account_id>/blobServices/default` should show `diag-<name_prefix>-storage-blob` pointing at `law-<name_prefix>` (`module.monitoring.log_analytics_workspace_id` in the `terraform apply` output).
 
 ## Daily operation
 
@@ -46,6 +47,7 @@
 - Fraud-ops merchant review: `SELECT * FROM FRAUD_PLATFORM.MARTS.VW_MERCHANT_RISK_TRIAGE_QUEUE` lists merchants whose trailing 30-day flagged rate is `ELEVATED` or `HIGH`, worst first — this is the "merchants to review today" list. A merchant sitting at `HIGH` with a large `risk_score_divergence` (live rate far above `historical_risk_score`) is a candidate for an out-of-band `DIM_MERCHANT.merchant_risk_score` update ahead of the next offline recompute.
 - Chargeback reconciliation: `TASK_RECONCILE_FRAUD_OUTCOMES` merges resolved dispute outcomes from `RAW.RAW_CHARGEBACK_OUTCOMES` into `MARTS.CONFIRMED_FRAUD_OUTCOMES` (daily at 06:30 UTC, or as soon as a settlement file lands via `PIPE_RAW_CHARGEBACK_OUTCOMES`). This is what feeds the live drift monitor (`ml/src/monitor_drift.py`) — if `VW_RECONCILED_SCORED_TRANSACTIONS` stops growing day over day, check `SHOW TASKS LIKE 'TASK_RECONCILE_FRAUD_OUTCOMES'` and `SELECT SYSTEM$PIPE_STATUS('PIPE_RAW_CHARGEBACK_OUTCOMES')` before assuming the model itself has gone quiet on drift.
 - Storage cost check: the ADLS lifecycle management policy (`terraform/modules/storage/main.tf`) tiers `raw/` blobs to Cool/Archive and deletes stale `checkpoints/` blobs automatically — no manual action needed day to day, but if a storage cost spike shows up, confirm the policy is still `enabled` (`az storage account management-policy show --account-name <account>`) before assuming ingestion volume grew.
+- Audit log review: storage blob read/write/delete events are queryable in the `law-<name_prefix>` Log Analytics workspace, e.g. `StorageBlobLogs | where OperationName == "DeleteBlob" | where TimeGenerated > ago(1d)` to review the day's deletes against the raw zone's immutable-by-convention expectation.
 
 ## Retraining the fraud model
 
@@ -67,3 +69,4 @@ Review the MLflow run in the tracking UI; if `auc_pr` clears the gate the model 
 | `TASK_REFRESH_MARTS` not running | Task suspended or stream has no new data | `SHOW TASKS`, `SELECT SYSTEM$STREAM_HAS_DATA(...)` |
 | `CONFIRMED_FRAUD_OUTCOMES` not growing | `TASK_RECONCILE_FRAUD_OUTCOMES` suspended, or no settlement files have landed in `raw/chargebacks/` | `SHOW TASKS LIKE 'TASK_RECONCILE_FRAUD_OUTCOMES'`; `ALTER PIPE PIPE_RAW_CHARGEBACK_OUTCOMES REFRESH` to manually backfill |
 | Old raw-zone files unexpectedly in Cool/Archive tier | Lifecycle management policy tiering working as intended, not a fault | Rehydrate via `az storage blob set-tier --tier Hot` before reading if a job needs Hot-tier latency; adjust `raw_zone_cool_tier_after_days`/`raw_zone_archive_after_days` in the environment tfvars if the schedule is too aggressive |
+| No rows in `StorageBlobLogs` for a resource that's clearly getting traffic | Diagnostic setting missing or misconfigured (e.g. deployed before the storage account, or targeting the wrong `target_resource_id`) | `az monitor diagnostic-settings list --resource <storage_account_id>/blobServices/default`; re-`terraform apply` the `monitoring` module if the setting is absent |
