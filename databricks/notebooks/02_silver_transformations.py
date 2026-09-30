@@ -13,6 +13,11 @@ sys.path.append("/Workspace/Repos/fraud-platform/databricks/src")
 from utils.adls_io import MedallionPaths, upsert_delta
 from utils.spark_session import get_spark
 from transformations.cleansing import bronze_to_silver
+from transformations.data_quality_monitor import (
+    check_quarantine_rate_threshold,
+    compute_quarantine_rate,
+    raise_if_quarantine_rate_breached,
+)
 
 dbutils.widgets.text("storage_account", "stfraudplatformdevabcde")
 storage_account = dbutils.widgets.get("storage_account")
@@ -28,7 +33,15 @@ silver_df = bronze_to_silver(bronze_df)
 passed = silver_df.filter("_dq_passed = true")
 quarantined = silver_df.filter("_dq_passed = false")
 
-print(f"Silver rows passing DQ: {passed.count()} | quarantined: {quarantined.count()}")
+passed_count = passed.count()
+quarantined_count = quarantined.count()
+print(f"Silver rows passing DQ: {passed_count} | quarantined: {quarantined_count}")
+
+# COMMAND ----------
+
+quarantine_rate = compute_quarantine_rate(passed_count, quarantined_count)
+dq_check = check_quarantine_rate_threshold(quarantine_rate, total_rows=passed_count + quarantined_count)
+print(f"Quarantine rate: {dq_check['rate']:.2%} (threshold: {dq_check['threshold']:.2%})")
 
 # COMMAND ----------
 
@@ -40,6 +53,12 @@ upsert_delta(
 )
 
 quarantined.write.format("delta").mode("append").save(paths.silver("transactions_quarantine"))
+
+# COMMAND ----------
+
+# Fails the task (and trips job_config.json's email_notifications.on_failure) when
+# the quarantine rate clears QUARANTINE_RATE_THRESHOLD on a batch large enough to trust.
+raise_if_quarantine_rate_breached(dq_check, passed_count, quarantined_count)
 
 # COMMAND ----------
 

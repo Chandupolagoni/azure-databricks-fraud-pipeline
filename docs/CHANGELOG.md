@@ -4,6 +4,27 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-09-30 — Silver quarantine-rate monitor now fails the job instead of only printing counts
+
+- Added `databricks/src/transformations/data_quality_monitor.py`: `compute_quarantine_rate`
+  and `check_quarantine_rate_threshold` turn the `passed`/`quarantined` row counts
+  `02_silver_transformations.py` already printed into a real signal — flags once the
+  quarantine rate clears `QUARANTINE_RATE_THRESHOLD` (2%) on a batch of at least
+  `MIN_ROWS_FOR_CHECK` (100) rows, skipping thin batches the same way
+  `monitor_drift.py::MIN_RECONCILED_SAMPLES` skips thin reconciliation windows; a new
+  `DataQualityAlertError` + `raise_if_quarantine_rate_breached` fails the run with a
+  formatted alert body (`build_dq_alert_message`) so the `silver_transformations` task
+  exits non-zero and trips `job_config.json`'s existing `email_notifications.on_failure`
+  channel, instead of a bad batch only ever showing up as a line in the job's logs
+- Wired the check into `02_silver_transformations.py` right after the existing
+  passed/quarantined count printout, and before the quarantine table write
+- Added `tests/test_data_quality_monitor.py` covering the rate calculation (including the
+  empty-batch zero-division guard), the threshold check's breach/no-breach branches, the
+  thin-batch skip even when the rate itself is high, the alert message contents, and both
+  branches of `raise_if_quarantine_rate_breached`
+- Added a `Common incidents` row to `docs/runbook.md` for the new `DataQualityAlertError`
+  failure mode, pointing on-call at `transactions_quarantine` to find the failing rule(s)
+
 ## 2026-09-29 — Blob-service audit logging for the ADLS storage account
 
 - Added `terraform/modules/monitoring`: a `azurerm_log_analytics_workspace` plus an
