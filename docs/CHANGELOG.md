@@ -4,6 +4,22 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-10-06 — Account-level velocity watchlist for fraud-ops
+
+- Added `snowflake/ddl/08_create_account_velocity_watchlist.sql`: `VW_ACCOUNT_VELOCITY_WATCHLIST`
+  joins the static, offline-recomputed `DIM_CUSTOMER.risk_segment` against a rolling
+  trailing-7-day flagged rate and transaction velocity from `FCT_TRANSACTIONS`/`FRAUD_RISK_SCORES`
+  — the account-side counterpart to `VW_MERCHANT_RISK_SUMMARY` (06_create_merchant_risk_view.sql),
+  which only ever covered the merchant side. A shorter 7-day window is used here than the
+  merchant view's 30-day one since account-level fraud bursts play out over days, not weeks.
+  `VW_ACCOUNT_VELOCITY_TRIAGE_QUEUE` filters to `ELEVATED`/`HIGH` `velocity_tier`, sorted
+  worst-first with `distinct_merchants_7d` as a tiebreaker so a card-testing-style account
+  hitting many merchants in the window surfaces ahead of one concentrated at a single merchant
+- Updated `docs/data_dictionary.md` with the new view's columns
+- Updated `docs/runbook.md`'s Daily operation section with a "fraud-ops account review" note
+  mirroring the existing merchant triage queue note, and added a Common incidents row for a
+  thin/empty triage queue caused by `TASK_REFRESH_FRAUD_SCORES` lag rather than low volume
+
 ## 2026-09-30 — Silver quarantine-rate monitor now fails the job instead of only printing counts
 
 - Added `databricks/src/transformations/data_quality_monitor.py`: `compute_quarantine_rate`

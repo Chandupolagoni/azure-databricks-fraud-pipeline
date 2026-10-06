@@ -48,6 +48,24 @@ trailing-30-day flagged rate computed from `FCT_TRANSACTIONS`/`FRAUD_RISK_SCORES
 `VW_MERCHANT_RISK_TRIAGE_QUEUE` is `VW_MERCHANT_RISK_SUMMARY` filtered to `ELEVATED`/`HIGH` and
 sorted worst-first — see `docs/runbook.md`'s Daily operation section.
 
+## Snowflake: `MARTS.VW_ACCOUNT_VELOCITY_WATCHLIST`, `MARTS.VW_ACCOUNT_VELOCITY_TRIAGE_QUEUE`
+
+Per-account rollup joining the static `DIM_CUSTOMER.risk_segment` against a rolling
+trailing-7-day flagged rate and transaction velocity computed from
+`FCT_TRANSACTIONS`/`FRAUD_RISK_SCORES`. See DDL in
+`snowflake/ddl/08_create_account_velocity_watchlist.sql`.
+
+| Column | Type | Description |
+|---|---|---|
+| historical_risk_segment | string | Static, offline-recomputed `DIM_CUSTOMER.risk_segment` |
+| distinct_merchants_7d | number | Distinct merchants this account transacted with in the trailing 7 days (card-testing / account-takeover signal) |
+| flagged_rate_7d | float | Trailing 7-day share of this account's transactions flagged by the model |
+| velocity_tier | string | `INSUFFICIENT_VOLUME` (<5 txns in window), `NORMAL`, `ELEVATED` (>=0.10), or `HIGH` (>=0.25) flagged rate |
+
+`VW_ACCOUNT_VELOCITY_TRIAGE_QUEUE` is `VW_ACCOUNT_VELOCITY_WATCHLIST` filtered to
+`ELEVATED`/`HIGH`, sorted worst-first with distinct merchant spread as a tiebreaker — see
+`docs/runbook.md`'s Daily operation section.
+
 ## Snowflake: `RAW.RAW_CHARGEBACK_OUTCOMES`, `MARTS.CONFIRMED_FRAUD_OUTCOMES`
 
 Card-network chargeback/dispute settlement feed and the ground-truth table it reconciles into.
