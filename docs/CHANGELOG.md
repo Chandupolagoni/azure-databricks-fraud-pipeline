@@ -4,6 +4,21 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-10-08 — Direct unit tests for the feature store module
+
+- Added `tests/test_feature_store.py`: the first direct tests for `ml/src/feature_store.py`,
+  covering `make_synthetic_training_frame`'s row count/schema, binary label values, that the
+  ~3% fraud rate implied by the 97th-percentile threshold holds across sample sizes, determinism
+  for a fixed seed, variation across seeds, and unique `transaction_id`s, plus
+  `load_training_frame`'s inner-join semantics (mocked `deltalake.DeltaTable`, no live
+  ADLS/Delta access required) — both the happy-path join down to the shared `transaction_id`s
+  (dropping unmatched rows on either side and only the label column from the labels table) and
+  the no-overlap case returning an empty frame
+- Closes the gap where `train.py` and `inference.py` both depend on `feature_store.py`'s
+  synthetic-data shape and join behavior staying stable, but nothing verified that contract
+  automatically, unlike the synthetic data generator and `evaluate_predictions` tests added
+  previously
+
 ## 2026-10-06 — Account-level velocity watchlist for fraud-ops
 
 - Added `snowflake/ddl/08_create_account_velocity_watchlist.sql`: `VW_ACCOUNT_VELOCITY_WATCHLIST`
