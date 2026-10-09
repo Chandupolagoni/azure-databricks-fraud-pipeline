@@ -4,6 +4,24 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-10-09 — Direct unit tests for the batch inference module
+
+- Added `tests/test_inference.py`: the first direct tests for `ml/src/inference.py`,
+  covering `score_batch`'s model-stage URI (`models:/fraud-risk-classifier/<stage>`,
+  defaulting to `Production`), that it reads the fraud-probability column (index 1,
+  not 0) out of `predict_proba`, the `is_flagged` threshold boundary at
+  `FLAG_THRESHOLD`, that only `FEATURE_COLUMNS` (not incidental extra columns) are
+  passed into the model, and that `transaction_id` order and output column shape are
+  preserved; plus `write_scores_to_snowflake`'s `MARTS.FRAUD_RISK_SCORES` write (mocked
+  `snowflake.connector`, no live warehouse required)
+- `mlflow.sklearn` resolves through an internal lazy-loading proxy that re-imports on
+  each attribute access, so patching `mlflow.sklearn.load_model` directly doesn't
+  reliably stick across the call inside `score_batch`; the tests instead patch the
+  whole `inference.mlflow` module reference, which is stable
+- Closes the gap where `train.py`, `evaluate.py`, `feature_store.py`, `serving.py`, and
+  `monitor_drift.py` all now have direct tests but the batch-scoring path they feed
+  into did not
+
 ## 2026-10-08 — Direct unit tests for the feature store module
 
 - Added `tests/test_feature_store.py`: the first direct tests for `ml/src/feature_store.py`,
