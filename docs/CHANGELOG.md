@@ -4,6 +4,27 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-10-10 — Direct unit tests for the training module
+
+- Added `tests/test_train.py`: the first direct tests for `ml/src/train.py`, covering
+  the `PROMOTION_AUC_PR_THRESHOLD` gate on both sides (`>=`, not `>`, so an `auc_pr`
+  exactly at the threshold still promotes), that a clearing run calls
+  `MlflowClient.transition_model_version_stage` with the model's latest `None`-stage
+  version and `stage="Staging"`, that a non-clearing run never calls it, that the GBM
+  hyperparameters and metrics dict are logged via `mlflow.log_params`/`log_metrics`
+  exactly as constructed, that the fitted model is registered under `MODEL_NAME` via
+  `mlflow.sklearn.log_model`, and that `--synthetic` vs. `--delta-path`/`--labels-path`
+  selects `make_synthetic_training_frame` vs. `load_training_frame` correctly
+- Following `test_inference.py`'s pattern, the tests patch the whole `train.mlflow`
+  module reference rather than `mlflow.sklearn.log_model`/`mlflow.tracking.MlflowClient`
+  directly, since `mlflow.sklearn` is a lazy-loading proxy that re-resolves on each
+  attribute access and doesn't reliably stay patched across the call inside `train()`;
+  `GradientBoostingClassifier` is likewise stubbed so the suite doesn't pay for a real
+  `fit()` on every run
+- Closes the last gap in the ml/src direct-test sweep: `evaluate.py`, `feature_store.py`,
+  `inference.py`, `serving.py`, and `monitor_drift.py` all already had direct tests;
+  `train.py` — the module that ties all of them together via the promotion gate — did not
+
 ## 2026-10-09 — Direct unit tests for the batch inference module
 
 - Added `tests/test_inference.py`: the first direct tests for `ml/src/inference.py`,
