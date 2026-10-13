@@ -35,7 +35,7 @@
    snowsql -f snowflake/tasks/task_refresh_marts.sql
    snowsql -f snowflake/tasks/task_reconcile_fraud_outcomes.sql
    ```
-6. **ADF**: import `adf/pipelines`, `adf/datasets`, `adf/linkedServices`, `adf/triggers` via the ADF `Publish` workflow or `az datafactory` CLI; update the Snowflake/landing linked service connection strings to point at the real Key Vault secrets.
+6. **ADF**: import `adf/pipelines`, `adf/datasets`, `adf/linkedServices`, `adf/triggers` via the ADF `Publish` workflow or `az datafactory` CLI; update the Snowflake/landing linked service connection strings to point at the real Key Vault secrets. Coordinate with the landing-zone export job owners to write `landing/_control/manifest_<ingestDate>.json` (a JSON array of `{"sourceSystem": "..."}` entries, one per source system whose files have landed) before `tr_daily_schedule` fires each day — `pl_ingest_raw_transactions`'s `LookupSourceFileManifest` activity reads this file via `ds_landing_manifest` to decide which `ds_landing_source_file` folders `ForEachSourceFile` copies into `raw/`.
 7. **Publish the daily trigger**: `az datafactory trigger start --trigger-name tr_daily_schedule ...`
 8. **Verify audit logging**: confirm the storage account's blob-service diagnostic setting landed against the new Log Analytics workspace: `az monitor diagnostic-settings list --resource <storage_account_id>/blobServices/default` should show `diag-<name_prefix>-storage-blob` pointing at `law-<name_prefix>` (`module.monitoring.log_analytics_workspace_id` in the `terraform apply` output).
 
@@ -65,6 +65,7 @@ Review the MLflow run in the tracking UI; if `auc_pr` clears the gate the model 
 | Symptom | Likely cause | First step |
 |---|---|---|
 | ADF copy activity failing on landing files | Source file schema drift | Check `LookupSourceFileManifest` output vs. `ds_landing_source_file` schema |
+| `ForEachSourceFile` runs zero iterations (no copy failures, but nothing lands in `raw/`) | `landing/_control/manifest_<ingestDate>.json` is missing, empty, or wasn't refreshed for today | Confirm the landing export job wrote today's manifest with an entry per expected `sourceSystem` before `tr_daily_schedule` fired; re-run `pl_ingest_raw_transactions` once it's in place |
 | Databricks job stuck / OOM | Skewed partition or undersized job cluster | Check Spark UI stage metrics; consider raising `autoscale.max_workers` in `job_config.json` |
 | Snowpipe not ingesting new files | Event Grid notification integration misconfigured | `ALTER PIPE ... REFRESH` to manually backfill, then check the notification integration |
 | `TASK_REFRESH_MARTS` not running | Task suspended or stream has no new data | `SHOW TASKS`, `SELECT SYSTEM$STREAM_HAS_DATA(...)` |
