@@ -4,6 +4,26 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-10-13 — Fix pl_ingest_raw_transactions: missing manifest dataset and broken parameter wiring
+
+- Added `adf/datasets/ds_landing_manifest.json`: the JSON manifest dataset that
+  `pl_ingest_raw_transactions`'s `LookupSourceFileManifest` activity has referenced by name
+  since the initial release, but which was never actually committed — every deploy of this
+  pipeline via the ADF Publish workflow would have failed to validate (or failed at runtime
+  the first time it tried to resolve `ds_landing_manifest`) with "dataset not found"
+- Fixed two more latent bugs in `pl_ingest_raw_transactions.json` surfaced while diagnosing
+  the above: `LookupSourceFileManifest` was missing `"firstRowOnly": false`, so it would
+  have returned a single row object under `.output.value` instead of the array
+  `ForEachSourceFile`'s `items` expression expects to iterate; and `CopyToRawZone`'s
+  `ds_adls_raw_zone` output dataset reference wasn't passing the `sourceSystem` parameter
+  that dataset declares and needs to resolve its `raw/<sourceSystem>/<date>` `folderPath`
+  expression, so every file would have landed with an unresolved/empty partition path
+  instead of the one implied by the manifest entry it came from
+- Updated `docs/runbook.md`'s ADF deployment step with the manifest file's expected path,
+  shape, and who owns writing it (the upstream landing export job, ahead of the daily
+  trigger), and added a Common incidents row for a silently-empty `ForEachSourceFile` run
+  caused by a missing or stale manifest, as distinct from the existing schema-drift row
+
 ## 2026-10-10 — Direct unit tests for the training module
 
 - Added `tests/test_train.py`: the first direct tests for `ml/src/train.py`, covering

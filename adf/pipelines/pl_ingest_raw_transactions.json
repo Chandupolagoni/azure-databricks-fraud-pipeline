@@ -27,7 +27,8 @@
           "dataset": {
             "referenceName": "ds_landing_manifest",
             "type": "DatasetReference"
-          }
+          },
+          "firstRowOnly": false
         }
       },
       {
@@ -59,7 +60,11 @@
                 "enableStaging": false
               },
               "inputs": [{ "referenceName": "ds_landing_source_file", "type": "DatasetReference" }],
-              "outputs": [{ "referenceName": "ds_adls_raw_zone", "type": "DatasetReference" }]
+              "outputs": [{
+                "referenceName": "ds_adls_raw_zone",
+                "type": "DatasetReference",
+                "parameters": { "sourceSystem": "@item().sourceSystem" }
+              }]
             }
           ]
         }

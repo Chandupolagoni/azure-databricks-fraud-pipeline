@@ -1,0 +1,17 @@
+{
+  "name": "ds_landing_manifest",
+  "properties": {
+    "description": "Daily manifest written by the upstream landing export job before tr_daily_schedule fires: a JSON array of {\"sourceSystem\": \"...\"} entries, one per source system whose files have landed and are ready to copy for the given ingestDate. Read by pl_ingest_raw_transactions's LookupSourceFileManifest activity to drive ForEachSourceFile.",
+    "linkedServiceName": { "referenceName": "ls_landing_blob", "type": "LinkedServiceReference" },
+    "type": "Json",
+    "typeProperties": {
+      "location": {
+        "type": "AzureBlobStorageLocation",
+        "container": "landing",
+        "folderPath": "_control",
+        "fileName": "@{concat('manifest_', pipeline().parameters.ingestDate, '.json')}"
+      }
+    },
+    "schema": []
+  }
+}
