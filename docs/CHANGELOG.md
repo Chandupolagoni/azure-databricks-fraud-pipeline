@@ -4,6 +4,27 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-10-14 — Databricks workspace audit logs into the shared Log Analytics workspace
+
+- Added an `azurerm_monitor_diagnostic_setting` for the Databricks workspace to
+  `terraform/modules/monitoring/main.tf` (`databricks_workspace`), sending `accounts`,
+  `clusters`, `notebook`, `secrets`, and `workspace` category logs into the same
+  `azurerm_log_analytics_workspace` the ADLS storage account's blob audit logs already
+  flow into, rather than standing up a second workspace — this is exactly the follow-on
+  the module's original header comment called out ("so other resources can send
+  diagnostics to the same shared workspace later without duplicating the workspace
+  resource")
+- Added the `databricks_workspace_id` variable to `terraform/modules/monitoring` and wired
+  `module.databricks.workspace_id` into it from `terraform/main.tf` (a forward reference to
+  `module "databricks"`, declared later in the same file — Terraform resolves module
+  dependencies from references, not declaration order)
+- Updated `architecture.md`'s Storage section with a bullet covering the new
+  compute-plane audit trail (notebook/cluster/secret-scope activity) alongside the
+  existing data-plane one (blob read/write/delete), both landing in one Log Analytics
+  workspace
+- No new resource IDs are hardcoded: `databricks_workspace_id` only ever arrives as a
+  module output, matching how `storage_account_id` was already wired in
+
 ## 2026-10-13 — Fix pl_ingest_raw_transactions: missing manifest dataset and broken parameter wiring
 
 - Added `adf/datasets/ds_landing_manifest.json`: the JSON manifest dataset that
