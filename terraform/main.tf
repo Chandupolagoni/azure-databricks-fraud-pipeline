@@ -37,15 +37,19 @@ module "storage" {
   checkpoints_delete_after_days = var.checkpoints_delete_after_days
 }
 
+# databricks_workspace_id below is a forward reference to module "databricks", declared
+# later in this file - fine since Terraform resolves module dependencies from references,
+# not from the order modules are declared in.
 module "monitoring" {
   source = "./modules/monitoring"
 
-  name_prefix         = local.name_prefix
-  resource_group_name = azurerm_resource_group.this.name
-  location            = azurerm_resource_group.this.location
-  storage_account_id  = module.storage.storage_account_id
-  log_retention_days  = var.log_analytics_retention_days
-  tags                = var.tags
+  name_prefix              = local.name_prefix
+  resource_group_name      = azurerm_resource_group.this.name
+  location                 = azurerm_resource_group.this.location
+  storage_account_id       = module.storage.storage_account_id
+  databricks_workspace_id  = module.databricks.workspace_id
+  log_retention_days       = var.log_analytics_retention_days
+  tags                     = var.tags
 }
 
 module "key_vault" {

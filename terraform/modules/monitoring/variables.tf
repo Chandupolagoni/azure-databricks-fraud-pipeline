@@ -15,6 +15,11 @@ variable "storage_account_id" {
   type        = string
 }
 
+variable "databricks_workspace_id" {
+  description = "Resource ID of the Databricks workspace (module.databricks.workspace_id) to attach workspace-level audit-log diagnostic settings to."
+  type        = string
+}
+
 variable "log_retention_days" {
   description = "Days Log Analytics retains ingested audit logs. Financial-services audit trails typically require longer retention in prod than dev."
   type        = number
