@@ -4,6 +4,23 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-10-16 — Direct unit tests for the ADLS path-building helpers
+
+- Added `tests/test_adls_io.py`: the first direct tests for `databricks/src/utils/adls_io.py`'s
+  `MedallionPaths` (`raw`/`silver`/`gold`/`checkpoint` all resolve to the correct container and
+  prefix, the `raw_container`/`curated_container`/`checkpoints_container` overrides are honored,
+  silver and gold paths never collide for the same table name, and the dataclass is frozen) and
+  `databricks/src/utils/spark_session.py`'s `adls_path` helper (bare container URI vs. with a
+  sub-path, and that it agrees with `MedallionPaths.raw` for equivalent inputs)
+- Both helpers are called from every notebook and transformation module that touches ADLS
+  (`01_bronze_ingestion.py` through `06_streaming_fraud_velocity_features.py`, plus
+  `streaming_io.py`'s checkpoint wiring), but neither had a test asserting the actual string
+  shape of the `abfss://` URIs they build — a typo in a container name or path prefix would
+  only have surfaced at job runtime against a real ADLS account, not in CI
+- Extends the direct-unit-test sweep (`train.py`, `inference.py`, `feature_store.py`,
+  `serving.py`, `monitor_drift.py`, `data_quality_monitor.py`) from the `ml/`/transformation
+  layer down into the shared `databricks/src/utils` helpers those modules all build on
+
 ## 2026-10-14 — Databricks workspace audit logs into the shared Log Analytics workspace
 
 - Added an `azurerm_monitor_diagnostic_setting` for the Databricks workspace to
