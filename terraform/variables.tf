@@ -98,3 +98,15 @@ variable "log_analytics_retention_days" {
   type        = number
   default     = 90
 }
+
+variable "mass_delete_alert_threshold" {
+  description = "Number of successful StorageDelete operations against the ADLS account allowed per evaluation window before the mass-delete alert fires (modules/monitoring). Lower in prod than dev."
+  type        = number
+  default     = 50
+}
+
+variable "alert_notification_emails" {
+  description = "Email addresses notified when a monitoring alert fires. Left empty here and supplied at deploy time, not committed."
+  type        = list(string)
+  default     = []
+}

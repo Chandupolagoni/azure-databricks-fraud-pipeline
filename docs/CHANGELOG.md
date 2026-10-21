@@ -4,6 +4,29 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-10-21 — Log-based alert on anomalous mass blob deletes
+
+- Added `azurerm_monitor_action_group.data_alerts` and
+  `azurerm_monitor_scheduled_query_rules_alert_v2.mass_blob_delete` to
+  `terraform/modules/monitoring`: a log-based alert that queries the `StorageDelete`
+  diagnostic logs already flowing into the shared Log Analytics workspace (added for
+  `StorageRead`/`StorageWrite`/`StorageDelete` auditing in the 2026-10-14 increment) and
+  fires an email notification via the new action group when successful deletes exceed a
+  threshold within an evaluation window
+- The diagnostic setting alone only makes delete activity queryable *after the fact* —
+  an investigator reviewing it once a raw/curated zone has already been wiped by an
+  accidental bulk delete or a compromised credential/job is too slow to matter; this
+  closes that gap with a near-real-time alert instead
+- New variables `mass_delete_alert_threshold` (default 50), `mass_delete_alert_window_minutes`
+  (default 5), and `alert_notification_emails` (default `[]`, intentionally left for
+  deploy-time injection rather than committed) on `modules/monitoring`, threaded through
+  `terraform/variables.tf` and `terraform/main.tf`'s `module "monitoring"` block
+- `dev.tfvars` sets the threshold to 200 (synthetic-data refresh and test-fixture teardown
+  routinely bulk-delete there) and `prod.tfvars` to 20 (no legitimate prod job bulk-deletes
+  raw/curated data, so a tighter threshold catches a real incident faster)
+- Updated `architecture.md`'s Storage section with a bullet describing the new alert
+  alongside the audit-log bullets it builds on
+
 ## 2026-10-16 — Direct unit tests for the ADLS path-building helpers
 
 - Added `tests/test_adls_io.py`: the first direct tests for `databricks/src/utils/adls_io.py`'s

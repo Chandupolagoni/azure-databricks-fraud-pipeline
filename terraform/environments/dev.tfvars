@@ -12,6 +12,10 @@ checkpoints_delete_after_days = 7
 # Dev audit logs don't need long retention
 log_analytics_retention_days = 30
 
+# Dev workloads (synthetic data refreshes, test fixture teardown) routinely delete
+# more blobs at once than prod ever should, so the mass-delete alert threshold is looser
+mass_delete_alert_threshold = 200
+
 vnet_address_space              = ["10.20.0.0/16"]
 databricks_public_subnet_cidr   = "10.20.1.0/24"
 databricks_private_subnet_cidr  = "10.20.2.0/24"
