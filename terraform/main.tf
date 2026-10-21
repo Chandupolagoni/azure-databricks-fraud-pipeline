@@ -43,13 +43,15 @@ module "storage" {
 module "monitoring" {
   source = "./modules/monitoring"
 
-  name_prefix              = local.name_prefix
-  resource_group_name      = azurerm_resource_group.this.name
-  location                 = azurerm_resource_group.this.location
-  storage_account_id       = module.storage.storage_account_id
-  databricks_workspace_id  = module.databricks.workspace_id
-  log_retention_days       = var.log_analytics_retention_days
-  tags                     = var.tags
+  name_prefix                 = local.name_prefix
+  resource_group_name         = azurerm_resource_group.this.name
+  location                    = azurerm_resource_group.this.location
+  storage_account_id          = module.storage.storage_account_id
+  databricks_workspace_id     = module.databricks.workspace_id
+  log_retention_days          = var.log_analytics_retention_days
+  mass_delete_alert_threshold = var.mass_delete_alert_threshold
+  alert_notification_emails   = var.alert_notification_emails
+  tags                        = var.tags
 }
 
 module "key_vault" {

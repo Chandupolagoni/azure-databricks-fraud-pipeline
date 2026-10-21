@@ -84,3 +84,69 @@ resource "azurerm_monitor_diagnostic_setting" "databricks_workspace" {
     category = "workspace"
   }
 }
+
+# Notification target for log-based alerts defined below. Kept as a single shared action
+# group (rather than one per alert) since this module currently has one alert, and any
+# future log-based alert on this workspace can reuse it.
+resource "azurerm_monitor_action_group" "data_alerts" {
+  name                = "ag-${var.name_prefix}-data-alerts"
+  resource_group_name = var.resource_group_name
+  short_name          = "fraudalrt"
+
+  dynamic "email_receiver" {
+    for_each = var.alert_notification_emails
+    content {
+      name                    = "email-${replace(email_receiver.value, "/[^a-zA-Z0-9]/", "-")}"
+      email_address           = email_receiver.value
+      use_common_alert_schema = true
+    }
+  }
+
+  tags = var.tags
+}
+
+# Log-based alert on the StorageDelete diagnostic logs ingested above. The diagnostic
+# setting on its own only makes delete activity *queryable after the fact* — an
+# investigator reviewing it after a raw/curated zone has already been wiped is too slow
+# to matter for a financial platform. This closes that gap by firing in near-real-time
+# when successful blob deletes against the storage account spike past a normal-operations
+# baseline, catching an accidental mass delete or a compromised credential/job before it
+# runs to completion.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "mass_blob_delete" {
+  name                = "alert-${var.name_prefix}-mass-blob-delete"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+
+  evaluation_frequency = "PT${var.mass_delete_alert_window_minutes}M"
+  window_duration      = "PT${var.mass_delete_alert_window_minutes}M"
+  scopes               = [azurerm_log_analytics_workspace.this.id]
+  severity             = 1
+
+  criteria {
+    query = <<-QUERY
+      AzureDiagnostics
+      | where ResourceProvider == "MICROSOFT.STORAGE"
+      | where Category == "StorageDelete"
+      | where StatusText == "Success"
+      | summarize DeleteCount = count()
+    QUERY
+
+    time_aggregation_method = "Count"
+    threshold                = var.mass_delete_alert_threshold
+    operator                 = "GreaterThan"
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.data_alerts.id]
+  }
+
+  description  = "Successful StorageDelete operations against the ADLS storage account exceeded ${var.mass_delete_alert_threshold} within a ${var.mass_delete_alert_window_minutes}-minute window."
+  display_name = "Mass blob delete detected — ${var.name_prefix}"
+  enabled      = true
+  tags         = var.tags
+}
