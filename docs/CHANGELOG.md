@@ -4,6 +4,22 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-10-22 — Daily model precision/recall trend view
+
+- Added `snowflake/ddl/09_create_model_confusion_matrix_view.sql`: `MARTS.VW_DAILY_MODEL_CONFUSION_MATRIX`
+  computes true/false positive/negative counts and precision, recall, and false-positive-rate per
+  day and model version off the same `VW_RECONCILED_SCORED_TRANSACTIONS` population
+  `ml/src/monitor_drift.py`'s live AUC-PR check already scores against; `VW_MODEL_PRECISION_RECALL_TREND_30D`
+  is the trailing-30-day, most-recent-first sibling view for day-to-day review, following the same
+  pattern as `VW_MERCHANT_RISK_TRIAGE_QUEUE` / `VW_ACCOUNT_VELOCITY_TRIAGE_QUEUE`
+- The drift monitor only surfaces a single rolled-up AUC-PR number, and only on alert; this gives
+  fraud-ops and the model owner a browsable day-by-day breakdown of precision vs. recall vs.
+  false-positive-rate, so a metric move can be diagnosed (precision down vs. recall down point at
+  different root causes) without pulling job logs or re-running a notebook
+- Documented both views in `docs/data_dictionary.md`; added the Daily operation runbook entry and
+  backfilled the missing `08_create_account_velocity_watchlist.sql` + new `09_...` steps into the
+  Snowflake bootstrap sequence in `docs/runbook.md`
+
 ## 2026-10-21 — Log-based alert on anomalous mass blob deletes
 
 - Added `azurerm_monitor_action_group.data_alerts` and

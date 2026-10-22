@@ -84,3 +84,23 @@ See DDL in `snowflake/ddl/07_create_chargeback_outcomes_feed.sql` and
 `CONFIRMED_FRAUD_OUTCOMES` only gains a row once a transaction both exists in
 `FCT_TRANSACTIONS` and has a `resolved_at` chargeback outcome — see `docs/runbook.md`'s Daily
 operation section for the reconciliation cadence.
+
+## Snowflake: `MARTS.VW_DAILY_MODEL_CONFUSION_MATRIX`, `MARTS.VW_MODEL_PRECISION_RECALL_TREND_30D`
+
+Daily confusion-matrix counts and precision/recall/false-positive-rate, grouped by
+`reconciled_date` and `model_version`, over the same reconciled population
+`ml/src/monitor_drift.py`'s live AUC-PR check scores against
+(`VW_RECONCILED_SCORED_TRANSACTIONS`). See DDL in
+`snowflake/ddl/09_create_model_confusion_matrix_view.sql`.
+
+| Column | Type | Description |
+|---|---|---|
+| reconciled_date | date | Day the chargeback/dispute outcome was reconciled (not when the transaction was scored) |
+| true_positives / false_positives | number | Flagged transactions that were / weren't confirmed fraud |
+| false_negatives / true_negatives | number | Unflagged transactions that were / weren't confirmed fraud |
+| precision_score | float | `true_positives / (true_positives + false_positives)` |
+| recall_score | float | `true_positives / (true_positives + false_negatives)` |
+| false_positive_rate | float | `false_positives / (false_positives + true_negatives)` |
+
+`VW_MODEL_PRECISION_RECALL_TREND_30D` is `VW_DAILY_MODEL_CONFUSION_MATRIX` filtered to the
+trailing 30 days, sorted most-recent-first — see `docs/runbook.md`'s Daily operation section.
