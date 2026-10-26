@@ -20,6 +20,11 @@ variable "databricks_workspace_id" {
   type        = string
 }
 
+variable "key_vault_id" {
+  description = "Resource ID of the Key Vault (module.key_vault.key_vault_id) to attach secret-access audit-log diagnostic settings to."
+  type        = string
+}
+
 variable "log_retention_days" {
   description = "Days Log Analytics retains ingested audit logs. Financial-services audit trails typically require longer retention in prod than dev."
   type        = number

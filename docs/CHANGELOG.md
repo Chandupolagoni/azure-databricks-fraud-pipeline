@@ -4,6 +4,29 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-10-26 — Key Vault secret-access audit logs into the shared Log Analytics workspace
+
+- Added an `azurerm_monitor_diagnostic_setting` for the Key Vault to
+  `terraform/modules/monitoring/main.tf` (`key_vault`, `AuditEvent` log category plus
+  `AllMetrics`), sending secret-access events into the same `azurerm_log_analytics_workspace`
+  the ADLS storage account's blob logs and the Databricks workspace's compute-plane logs
+  already flow into (2026-10-14), instead of standing up a third workspace
+- Every Snowflake/ADLS credential the platform's Databricks jobs and ADF linked services
+  resolve at runtime comes through this Key Vault (`fraud-platform-kv-scope`,
+  `modules/key-vault`) — until now, who read or wrote which secret and when wasn't
+  queryable anywhere, which is exactly the kind of gap financial-services audit
+  requirements flag: the data-plane and compute-plane trails already existed, but the
+  credentials backing both of them had no trail of their own
+- Added the `key_vault_id` variable to `terraform/modules/monitoring` and wired
+  `module.key_vault.key_vault_id` into it from `terraform/main.tf` — another forward
+  reference, same pattern as `databricks_workspace_id`'s, since `module "key_vault"` is
+  declared after `module "monitoring"` in that file
+- Added the `key_vault_audit_diagnostic_setting_id` output
+- Updated `architecture.md`'s Storage section with a bullet tying the new secrets-plane
+  trail to the existing data-plane/compute-plane ones, and `docs/runbook.md`'s audit-logging
+  verification step, Daily operation audit-log-review bullet, and Common incidents table
+  with the Key Vault equivalents of the existing storage-diagnostic entries
+
 ## 2026-10-22 — Daily model precision/recall trend view
 
 - Added `snowflake/ddl/09_create_model_confusion_matrix_view.sql`: `MARTS.VW_DAILY_MODEL_CONFUSION_MATRIX`

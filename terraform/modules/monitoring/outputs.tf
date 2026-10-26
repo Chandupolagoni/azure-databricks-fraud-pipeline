@@ -13,3 +13,7 @@ output "data_alerts_action_group_id" {
 output "mass_blob_delete_alert_id" {
   value = azurerm_monitor_scheduled_query_rules_alert_v2.mass_blob_delete.id
 }
+
+output "key_vault_audit_diagnostic_setting_id" {
+  value = azurerm_monitor_diagnostic_setting.key_vault.id
+}
