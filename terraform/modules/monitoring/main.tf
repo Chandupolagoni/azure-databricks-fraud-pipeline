@@ -85,6 +85,28 @@ resource "azurerm_monitor_diagnostic_setting" "databricks_workspace" {
   }
 }
 
+# Key Vault secret-access audit logs into the same shared Log Analytics workspace. Every
+# Snowflake/ADLS credential the platform's Databricks jobs and ADF linked services resolve
+# at runtime comes through this Key Vault (fraud-platform-kv-scope, modules/key-vault), so
+# "who read or wrote which secret, and when" is exactly the kind of access financial-services
+# audit requirements expect to be queryable - without this, the data-plane (storage) and
+# compute-plane (databricks_workspace) trails above existed, but the credentials backing
+# both of them had none of their own.
+resource "azurerm_monitor_diagnostic_setting" "key_vault" {
+  name                       = "diag-${var.name_prefix}-key-vault"
+  target_resource_id         = var.key_vault_id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.this.id
+
+  enabled_log {
+    category = "AuditEvent"
+  }
+
+  metric {
+    category = "AllMetrics"
+    enabled  = true
+  }
+}
+
 # Notification target for log-based alerts defined below. Kept as a single shared action
 # group (rather than one per alert) since this module currently has one alert, and any
 # future log-based alert on this workspace can reuse it.
