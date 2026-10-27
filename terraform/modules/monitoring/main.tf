@@ -107,6 +107,32 @@ resource "azurerm_monitor_diagnostic_setting" "key_vault" {
   }
 }
 
+# Pipeline/activity/trigger run audit logs for the Data Factory, into the same shared
+# Log Analytics workspace as the storage/Databricks/Key Vault diagnostic logs above. ADF
+# resolves the Snowflake/landing credentials for pl_ingest_raw_transactions and
+# pl_orchestrate_full_pipeline out of this platform's Key Vault at runtime (modules/key-vault),
+# so an investigator correlating "who touched this secret" (key_vault diagnostic setting
+# above) with "which pipeline run actually used it" previously had no ADF-side trail to
+# pivot into - this closes that gap, completing the ingestion-through-compute audit chain
+# (ADF -> Databricks -> storage) started by the diagnostic settings above.
+resource "azurerm_monitor_diagnostic_setting" "data_factory" {
+  name                       = "diag-${var.name_prefix}-adf"
+  target_resource_id         = var.data_factory_id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.this.id
+
+  enabled_log {
+    category = "ActivityRuns"
+  }
+
+  enabled_log {
+    category = "PipelineRuns"
+  }
+
+  enabled_log {
+    category = "TriggerRuns"
+  }
+}
+
 # Notification target for log-based alerts defined below. Kept as a single shared action
 # group (rather than one per alert) since this module currently has one alert, and any
 # future log-based alert on this workspace can reuse it.

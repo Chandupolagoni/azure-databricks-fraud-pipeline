@@ -10,6 +10,7 @@ A medallion-architecture data platform on Azure for a financial services fraud &
 - `pl_ingest_raw_transactions`: copies core-banking, card-network, and digital-channel event files (batch, CSV/JSON/Parquet) from source (SFTP/Blob landing zone) into ADLS Gen2 `raw/` zone, partitioned by `ingest_date`.
 - `pl_orchestrate_full_pipeline`: parent pipeline that triggers ingestion, then invokes the Databricks Jobs (Bronze→Silver→Gold) via the Databricks linked service, then triggers the Snowflake load task.
 - Triggers: daily schedule trigger for batch loads; event-based trigger (Storage Event) for near-real-time card-authorization files.
+- Pipeline/activity/trigger-run diagnostic logging (`azurerm_monitor_diagnostic_setting`, `terraform/modules/monitoring`) ships `ActivityRuns`/`PipelineRuns`/`TriggerRuns` audit logs into the same shared Log Analytics workspace as the storage, Databricks, and Key Vault diagnostic logs below — both pipelines above resolve their Snowflake/landing credentials out of the same Key Vault at runtime, so this closes the last link in the audit chain: which pipeline run touched which secret (Key Vault log), which notebook/cluster it then invoked (Databricks log), and which blobs that run read or wrote (storage log) are now all queryable from one workspace instead of stopping at the compute layer.
 
 ### 2. Storage — ADLS Gen2
 Hierarchical namespace with three logical zones inside one storage account, isolated by container/ACL:
