@@ -53,3 +53,8 @@ variable "alert_notification_emails" {
   type        = list(string)
   default     = []
 }
+
+variable "data_factory_id" {
+  description = "Resource ID of the Data Factory (module.adf.data_factory_id) to attach pipeline/activity/trigger-run audit-log diagnostic settings to."
+  type        = string
+}

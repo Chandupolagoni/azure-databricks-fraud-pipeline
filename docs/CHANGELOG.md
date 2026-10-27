@@ -4,6 +4,31 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-10-27 — Data Factory pipeline/activity/trigger-run audit logs into the shared Log Analytics workspace
+
+- Added an `azurerm_monitor_diagnostic_setting` for the Data Factory to
+  `terraform/modules/monitoring/main.tf` (`data_factory`, `ActivityRuns`/`PipelineRuns`/`TriggerRuns`
+  log categories), sending ADF's pipeline-run audit trail into the same
+  `azurerm_log_analytics_workspace` the ADLS storage account's blob logs (2026-10-14 predecessor),
+  the Databricks workspace's compute-plane logs, and the Key Vault's secret-access logs
+  (2026-10-26) already flow into
+- `pl_ingest_raw_transactions` and `pl_orchestrate_full_pipeline` both resolve their
+  Snowflake/landing credentials out of this same Key Vault at runtime via ADF linked
+  services — until now there was no way to tie a specific pipeline run back to the secret
+  reads it triggered, or forward to the Databricks job it then invoked; this closes that
+  gap, so the ingestion-through-compute audit chain (ADF → Key Vault → Databricks →
+  storage) is fully queryable from one Log Analytics workspace
+- Added the `data_factory_id` variable to `terraform/modules/monitoring` and wired
+  `module.adf.data_factory_id` into it from `terraform/main.tf` — the same forward-reference
+  pattern already used for `databricks_workspace_id` and `key_vault_id`, since `module "adf"`
+  is declared after `module "monitoring"` in that file
+- Added the `adf_audit_diagnostic_setting_id` output
+- Updated `architecture.md`'s Ingestion section with a bullet describing the new trail
+  alongside the storage/Databricks/Key Vault ones it completes, and `docs/runbook.md`'s
+  audit-logging verification step, Daily operation audit-log-review bullet, and Common
+  incidents table with the Data Factory equivalents of the existing diagnostic-setting
+  entries
+
 ## 2026-10-26 — Key Vault secret-access audit logs into the shared Log Analytics workspace
 
 - Added an `azurerm_monitor_diagnostic_setting` for the Key Vault to

@@ -17,3 +17,7 @@ output "mass_blob_delete_alert_id" {
 output "key_vault_audit_diagnostic_setting_id" {
   value = azurerm_monitor_diagnostic_setting.key_vault.id
 }
+
+output "adf_audit_diagnostic_setting_id" {
+  value = azurerm_monitor_diagnostic_setting.data_factory.id
+}
