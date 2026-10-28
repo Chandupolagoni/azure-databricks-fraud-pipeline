@@ -26,7 +26,9 @@ from utils.spark_session import get_spark
 from utils.streaming_io import (
     apply_late_arrival_watermark,
     read_card_auth_stream,
+    split_streaming_quality,
     write_bronze_stream,
+    write_quarantine_stream,
 )
 
 dbutils.widgets.text("storage_account", "stfraudplatformdevabcde")
@@ -43,7 +45,8 @@ paths = MedallionPaths(storage_account=storage_account)
 # COMMAND ----------
 
 raw_stream = read_card_auth_stream(spark, paths)
-watermarked_stream = apply_late_arrival_watermark(raw_stream, delay_threshold="15 minutes")
+clean_stream, quarantined_stream = split_streaming_quality(raw_stream)
+watermarked_stream = apply_late_arrival_watermark(clean_stream, delay_threshold="15 minutes")
 
 bronze_path = paths.silver("bronze_card_network_stream")
 checkpoint_path = paths.checkpoint("bronze_card_network_stream")
@@ -61,6 +64,28 @@ print(f"Checkpoint: {checkpoint_path}")
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC Records Auto Loader couldn't coerce into `card_auth_stream_schema` (an extra
+# MAGIC field, a type mismatch) land in a parallel quarantine stream instead of
+# MAGIC silently nulling columns in Bronze — the streaming counterpart to
+# MAGIC `transactions_quarantine` on the batch Silver path
+# MAGIC (`02_silver_transformations.py`).
+
+quarantine_path = paths.silver("bronze_card_network_stream_quarantine")
+quarantine_checkpoint_path = paths.checkpoint("bronze_card_network_stream_quarantine")
+
+quarantine_query = write_quarantine_stream(
+    quarantined_stream,
+    path=quarantine_path,
+    checkpoint_path=quarantine_checkpoint_path,
+    trigger_seconds=trigger_seconds,
+)
+
+print(f"Quarantine query '{quarantine_query.name or quarantine_query.id}' started -> {quarantine_path}")
+print(f"Checkpoint: {quarantine_checkpoint_path}")
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC `max_run_seconds` is set only for scheduled smoke-test runs (a Job that
 # MAGIC validates the stream still starts cleanly against `dev` sample data and then
 # MAGIC exits); leave it blank for the long-running `prod` job.
@@ -68,5 +93,6 @@ print(f"Checkpoint: {checkpoint_path}")
 if max_run_seconds:
     query.awaitTermination(timeout=int(max_run_seconds))
     query.stop()
+    quarantine_query.stop()
 else:
     query.awaitTermination()

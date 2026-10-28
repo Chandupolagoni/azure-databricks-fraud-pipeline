@@ -4,6 +4,27 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-10-28 — Malformed-record quarantine for streaming card-auth ingestion
+
+- Added `RESCUED_DATA_COLUMN`/`rescuedDataColumn` wiring to
+  `databricks/src/utils/streaming_io.py::read_card_auth_stream`, and a new
+  `split_streaming_quality` helper that partitions the stream into (clean, quarantined)
+  on that column; added `write_quarantine_stream`, a second append-only sink for the
+  quarantined side with its own Delta path/checkpoint. Wired both into
+  `databricks/notebooks/05_streaming_card_auth_ingestion.py`
+- `card_auth_stream_schema` is pinned explicitly for the reasons noted in its docstring,
+  but a pinned schema with no `rescuedDataColumn` means a record Auto Loader can't fully
+  coerce into it — a source-side field addition, or a type mismatch like `amount`
+  arriving as a string — was previously either dropped or landed in Bronze with the
+  mismatched column silently null, indistinguishable from a legitimately missing value.
+  This gives the streaming path the same quarantine-by-flag-not-drop behavior the batch
+  Silver path already has (`cleansing.py`, `transactions_quarantine`), so a schema
+  mismatch is visible and diagnosable instead of silent
+- Added `test_split_streaming_quality_separates_rescued_rows` and
+  `test_split_streaming_quality_all_clean_when_nothing_rescued` to `tests/test_streaming_io.py`
+- Added a Common incidents row to `docs/runbook.md` pointing on-call at the new
+  quarantine path's `_rescued_data` column to diagnose a streaming schema mismatch
+
 ## 2026-10-28 — Chargeback reconciliation aging/backlog view
 
 - Added `snowflake/ddl/10_create_chargeback_reconciliation_lag_view.sql`:

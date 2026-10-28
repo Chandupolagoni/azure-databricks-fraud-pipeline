@@ -9,10 +9,13 @@ pyspark = pytest.importorskip("pyspark")
 
 from pyspark.sql import SparkSession  # noqa: E402
 from pyspark.sql import functions as F  # noqa: E402
+from pyspark.sql.types import StringType, StructField, StructType  # noqa: E402
 
 from utils.streaming_io import (  # noqa: E402
+    RESCUED_DATA_COLUMN,
     apply_late_arrival_watermark,
     card_auth_stream_schema,
+    split_streaming_quality,
 )
 
 
@@ -48,3 +51,39 @@ def test_apply_late_arrival_watermark_preserves_rows_and_columns(spark):
 
     assert watermarked.columns == df.columns
     assert watermarked.count() == 1
+
+
+def test_split_streaming_quality_separates_rescued_rows(spark):
+    df = spark.createDataFrame(
+        [
+            ("t1", "2024-01-01 10:00:00", None),
+            ("t2", "2024-01-01 10:05:00", '{"extra_field": "unexpected"}'),
+        ],
+        ["transaction_id", "transaction_ts", RESCUED_DATA_COLUMN],
+    ).withColumn("transaction_ts", F.to_timestamp("transaction_ts"))
+
+    clean, quarantined = split_streaming_quality(df)
+
+    assert clean.count() == 1
+    assert clean.collect()[0]["transaction_id"] == "t1"
+    assert RESCUED_DATA_COLUMN not in clean.columns
+
+    assert quarantined.count() == 1
+    assert quarantined.collect()[0]["transaction_id"] == "t2"
+    assert RESCUED_DATA_COLUMN in quarantined.columns
+
+
+def test_split_streaming_quality_all_clean_when_nothing_rescued(spark):
+    schema = StructType(
+        [
+            StructField("transaction_id", StringType(), nullable=False),
+            StructField(RESCUED_DATA_COLUMN, StringType(), nullable=True),
+        ]
+    )
+    df = spark.createDataFrame([("t1", None)], schema)
+
+    clean, quarantined = split_streaming_quality(df)
+
+    assert clean.count() == 1
+    assert quarantined.count() == 0
+
