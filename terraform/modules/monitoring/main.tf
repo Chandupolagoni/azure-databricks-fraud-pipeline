@@ -198,3 +198,51 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "mass_blob_delete" {
   enabled      = true
   tags         = var.tags
 }
+
+# Log-based alert on the ADF pipeline-run audit logs ingested above (data_factory
+# diagnostic setting). Unlike the mass-blob-delete alert above, a failed pipeline run is
+# never expected during normal operation (not even in dev, where mass-delete churn from
+# test-fixture teardown is normal) — so this alerts on the first failure in a window by
+# default (var.adf_pipeline_failure_alert_threshold = 0) rather than waiting for a spike.
+# Without this, a failed pl_ingest_raw_transactions or pl_orchestrate_full_pipeline run
+# only surfaced the next time someone happened to query ADFPipelineRun/ADFActivityRun or
+# noticed downstream Gold/Snowflake tables hadn't refreshed — both are after-the-fact.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "adf_pipeline_failure" {
+  name                = "alert-${var.name_prefix}-adf-pipeline-failure"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+
+  evaluation_frequency = "PT${var.adf_pipeline_failure_alert_window_minutes}M"
+  window_duration      = "PT${var.adf_pipeline_failure_alert_window_minutes}M"
+  scopes               = [azurerm_log_analytics_workspace.this.id]
+  severity             = 1
+
+  criteria {
+    query = <<-QUERY
+      AzureDiagnostics
+      | where ResourceProvider == "MICROSOFT.DATAFACTORY"
+      | where Category == "PipelineRuns"
+      | where Status == "Failed"
+      | summarize FailureCount = count()
+    QUERY
+
+    time_aggregation_method = "Count"
+    threshold                = var.adf_pipeline_failure_alert_threshold
+    operator                 = "GreaterThan"
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.data_alerts.id]
+  }
+
+  description  = "ADF pipeline runs failed more than ${var.adf_pipeline_failure_alert_threshold} time(s) within a ${var.adf_pipeline_failure_alert_window_minutes}-minute window."
+  display_name = "ADF pipeline failure detected — ${var.name_prefix}"
+  enabled      = true
+  tags         = var.tags
+}
+

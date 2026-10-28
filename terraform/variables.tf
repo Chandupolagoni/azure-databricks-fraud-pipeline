@@ -110,3 +110,15 @@ variable "alert_notification_emails" {
   type        = list(string)
   default     = []
 }
+
+variable "adf_pipeline_failure_alert_threshold" {
+  description = "Number of failed ADF pipeline runs allowed per evaluation window before the pipeline-failure alert fires (modules/monitoring). Defaults to 0 (first failure pages); dev loosens this since intentional test-pipeline failures are expected there."
+  type        = number
+  default     = 0
+}
+
+variable "adf_pipeline_failure_alert_window_minutes" {
+  description = "Evaluation window, in minutes, the ADF pipeline-failure alert's failure count is summed over (modules/monitoring)."
+  type        = number
+  default     = 15
+}

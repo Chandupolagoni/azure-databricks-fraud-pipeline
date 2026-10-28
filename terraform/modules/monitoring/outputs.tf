@@ -21,3 +21,7 @@ output "key_vault_audit_diagnostic_setting_id" {
 output "adf_audit_diagnostic_setting_id" {
   value = azurerm_monitor_diagnostic_setting.data_factory.id
 }
+
+output "adf_pipeline_failure_alert_id" {
+  value = azurerm_monitor_scheduled_query_rules_alert_v2.adf_pipeline_failure.id
+}
