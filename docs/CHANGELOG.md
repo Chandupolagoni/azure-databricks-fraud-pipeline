@@ -4,6 +4,25 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-10-28 — Direct unit tests for the serving endpoint's readiness poll and scoring call
+
+- Added `tests/test_serving.py::test_wait_until_ready_returns_status_once_ready`,
+  `test_wait_until_ready_polls_until_ready`, and
+  `test_wait_until_ready_raises_timeout_error_when_never_ready`, covering
+  `ml/src/serving.py::wait_until_ready` with a mocked `WorkspaceClient` and
+  `monkeypatch`-ed `time.sleep` so the poll loop and timeout path run instantly instead of
+  a real multi-second wait
+- Added `test_score_transaction_flags_when_prediction_above_threshold`,
+  `test_score_transaction_not_flagged_when_prediction_below_threshold`, and
+  `test_score_transaction_raises_on_missing_feature`, covering
+  `score_transaction` — the low-latency real-time scoring call deploy scripts invoke right
+  after `wait_until_ready` confirms the endpoint is live
+- Neither function had direct coverage before this: `test_serving.py` exercised
+  `build_endpoint_config` and `deploy_serving_endpoint` but stopped short of the two
+  functions a deploy actually calls after creating/updating the endpoint, including the
+  timeout branch that's easy to get wrong (an off-by-one on the deadline check, or a
+  missed `poll_seconds` sleep) and only shows up against a slow real endpoint otherwise
+
 ## 2026-10-28 — Malformed-record quarantine for streaming card-auth ingestion
 
 - Added `RESCUED_DATA_COLUMN`/`rescuedDataColumn` wiring to
