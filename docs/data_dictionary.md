@@ -104,3 +104,20 @@ Daily confusion-matrix counts and precision/recall/false-positive-rate, grouped 
 
 `VW_MODEL_PRECISION_RECALL_TREND_30D` is `VW_DAILY_MODEL_CONFUSION_MATRIX` filtered to the
 trailing 30 days, sorted most-recent-first — see `docs/runbook.md`'s Daily operation section.
+
+## Snowflake: `MARTS.VW_CHARGEBACK_RECONCILIATION_AGING`, `MARTS.VW_CHARGEBACK_RECONCILIATION_SLA_BREACH_QUEUE`
+
+Backlog of open (unresolved) chargeback/dispute rows from `RAW.RAW_CHARGEBACK_OUTCOMES`,
+aged against the T+30 to T+90 day resolution window noted in
+`snowflake/ddl/07_create_chargeback_outcomes_feed.sql`. See DDL in
+`snowflake/ddl/10_create_chargeback_reconciliation_lag_view.sql`.
+
+| Column | Type | Description |
+|---|---|---|
+| days_open | number | Days since `filed_at`, as of now |
+| awaiting_transaction_ingest | boolean | `TRUE` if no matching `FCT_TRANSACTIONS` row exists yet — `SP_RECONCILE_FRAUD_OUTCOMES` skips these every run until ingestion catches up, so this can never resolve on its own |
+| aging_tier | string | `RECENT` (<30 days open), `WITHIN_EXPECTED_RANGE` (30-89 days), or `SLA_BREACH` (>=90 days) |
+
+`VW_CHARGEBACK_RECONCILIATION_SLA_BREACH_QUEUE` is `VW_CHARGEBACK_RECONCILIATION_AGING`
+filtered to `SLA_BREACH` or `awaiting_transaction_ingest`, sorted oldest-first — see
+`docs/runbook.md`'s Daily operation section.

@@ -4,6 +4,25 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-10-28 — Chargeback reconciliation aging/backlog view
+
+- Added `snowflake/ddl/10_create_chargeback_reconciliation_lag_view.sql`:
+  `MARTS.VW_CHARGEBACK_RECONCILIATION_AGING` ages every still-open row in
+  `RAW.RAW_CHARGEBACK_OUTCOMES` against the T+30 to T+90 day resolution window the feed's
+  own DDL comments note, and flags rows where the disputed `transaction_id` has no match
+  yet in `FCT_TRANSACTIONS`; `VW_CHARGEBACK_RECONCILIATION_SLA_BREACH_QUEUE` is the
+  filtered, oldest-first triage queue, following the same `_SUMMARY`/`_TRIAGE_QUEUE`
+  split as `VW_MERCHANT_RISK_SUMMARY`/`VW_MERCHANT_RISK_TRIAGE_QUEUE`
+- `SP_RECONCILE_FRAUD_OUTCOMES` only ever produces a row once a dispute is resolved, so
+  there was no visibility into the open backlog at all — a dispute silently aging past its
+  expected resolution window, or stuck because its transaction hasn't been ingested yet
+  (a case the procedure's own join can never close by itself, since it just skips those
+  rows every run), looked identical to one still normally in flight with the issuer. This
+  view tells those two cases apart so on-call chases the right pipeline
+- Documented both views in `docs/data_dictionary.md`; added the bootstrap step and a Daily
+  operation chargeback-backlog-review bullet to `docs/runbook.md`, alongside the existing
+  chargeback-reconciliation entry
+
 ## 2026-10-28 — Log-based alert on failed ADF pipeline runs
 
 - Added `azurerm_monitor_scheduled_query_rules_alert_v2.adf_pipeline_failure` to
