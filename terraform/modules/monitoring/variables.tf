@@ -58,3 +58,15 @@ variable "data_factory_id" {
   description = "Resource ID of the Data Factory (module.adf.data_factory_id) to attach pipeline/activity/trigger-run audit-log diagnostic settings to."
   type        = string
 }
+
+variable "adf_pipeline_failure_alert_threshold" {
+  description = "Number of failed ADF pipeline runs allowed within one evaluation window (see adf_pipeline_failure_alert_window_minutes) before the pipeline-failure alert fires. Defaults to 0 so the first failure pages, unlike mass_delete_alert_threshold — a failed pipeline run is never expected in normal operation, in dev or prod."
+  type        = number
+  default     = 0
+}
+
+variable "adf_pipeline_failure_alert_window_minutes" {
+  description = "Evaluation window, in minutes, the ADF pipeline-failure alert's failure count is summed over."
+  type        = number
+  default     = 15
+}

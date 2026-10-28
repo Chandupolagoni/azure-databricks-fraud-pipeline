@@ -16,6 +16,11 @@ log_analytics_retention_days = 30
 # more blobs at once than prod ever should, so the mass-delete alert threshold is looser
 mass_delete_alert_threshold = 200
 
+# Dev pipeline runs include intentional failure-path testing (bad manifest fixtures,
+# forced linked-service errors), so a handful of failures per window is routine here,
+# unlike prod where any failure should page immediately (adf_pipeline_failure_alert_threshold default of 0)
+adf_pipeline_failure_alert_threshold = 3
+
 vnet_address_space              = ["10.20.0.0/16"]
 databricks_public_subnet_cidr   = "10.20.1.0/24"
 databricks_private_subnet_cidr  = "10.20.2.0/24"

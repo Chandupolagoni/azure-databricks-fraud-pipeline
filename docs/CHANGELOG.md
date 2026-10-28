@@ -4,6 +4,28 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-10-28 — Log-based alert on failed ADF pipeline runs
+
+- Added `azurerm_monitor_scheduled_query_rules_alert_v2.adf_pipeline_failure` to
+  `terraform/modules/monitoring`, following the same pattern as `mass_blob_delete`: it
+  queries the `PipelineRuns` diagnostic logs already flowing into the shared Log
+  Analytics workspace (2026-10-27) and fires the existing `data_alerts` action group when
+  failed pipeline runs exceed a threshold within an evaluation window
+- The ADF diagnostic setting added yesterday only makes a failed `pl_ingest_raw_transactions`
+  or `pl_orchestrate_full_pipeline` run queryable *after* someone goes looking for it —
+  for a once-a-day pipeline that can mean a full day's lag before anyone notices a
+  failure. Unlike the mass-delete alert, a failed pipeline run is never expected in
+  normal operation, so the threshold defaults to 0 (first failure pages); dev loosens it
+  to 3 via `adf_pipeline_failure_alert_threshold` to tolerate intentional failure-path
+  testing (bad manifest fixtures, forced linked-service errors) without paging on every
+  test run
+- Added `adf_pipeline_failure_alert_threshold` and `adf_pipeline_failure_alert_window_minutes`
+  variables to `terraform/modules/monitoring` and the root module, wired through
+  `terraform/main.tf`; added the `adf_pipeline_failure_alert_id` output
+- Updated `architecture.md`'s Ingestion section and `docs/runbook.md`'s Daily operation
+  bullet and Common incidents table with the new alert, alongside the existing
+  mass-blob-delete entries
+
 ## 2026-10-27 — Data Factory pipeline/activity/trigger-run audit logs into the shared Log Analytics workspace
 
 - Added an `azurerm_monitor_diagnostic_setting` for the Data Factory to
