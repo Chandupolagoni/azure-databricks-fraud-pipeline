@@ -121,3 +121,24 @@ aged against the T+30 to T+90 day resolution window noted in
 `VW_CHARGEBACK_RECONCILIATION_SLA_BREACH_QUEUE` is `VW_CHARGEBACK_RECONCILIATION_AGING`
 filtered to `SLA_BREACH` or `awaiting_transaction_ingest`, sorted oldest-first — see
 `docs/runbook.md`'s Daily operation section.
+
+## Snowflake: `MARTS.VW_TASK_FAILURE_MONITOR`, `MARTS.VW_TASK_FAILURE_CASCADE_CHECK`
+
+Trailing-7-day failed-run history for the three warehouse-side tasks
+(`TASK_REFRESH_MARTS`, `TASK_REFRESH_FRAUD_SCORES`, `TASK_RECONCILE_FRAUD_OUTCOMES`),
+pulled from `SNOWFLAKE.ACCOUNT_USAGE.TASK_HISTORY`. See DDL in
+`snowflake/ddl/11_create_task_failure_monitor_view.sql`.
+
+| Column | Type | Description |
+|---|---|---|
+| task_name | string | One of the three monitored task names |
+| state | string | Always `FAILED` in this view (successful/skipped runs are excluded) |
+| error_code / error_message | string | The Snowflake error surfaced by the failed run |
+| scheduled_time / query_start_time / completed_time | timestamp | Lifecycle timestamps for the failed run |
+| graph_run_group_id | string | Groups all tasks executed as part of the same DAG run, used by `VW_TASK_FAILURE_CASCADE_CHECK` below |
+
+`VW_TASK_FAILURE_CASCADE_CHECK` joins `VW_TASK_FAILURE_MONITOR` against itself by
+`graph_run_group_id` to flag the case where `TASK_REFRESH_MARTS` failed and
+`TASK_REFRESH_FRAUD_SCORES` consequently never ran (its `AFTER` dependency was never
+satisfied, so it produces no row of its own rather than a second failure) — see
+`docs/runbook.md`'s Daily operation section.
