@@ -4,6 +4,23 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-10-29 — Task failure monitor view for the warehouse-side task graph
+
+- Added `snowflake/ddl/11_create_task_failure_monitor_view.sql`:
+  `MARTS.VW_TASK_FAILURE_MONITOR` surfaces any failed run of `TASK_REFRESH_MARTS`,
+  `TASK_REFRESH_FRAUD_SCORES`, or `TASK_RECONCILE_FRAUD_OUTCOMES` in the trailing 7 days,
+  pulled from `SNOWFLAKE.ACCOUNT_USAGE.TASK_HISTORY`; `VW_TASK_FAILURE_CASCADE_CHECK` flags
+  the case where `TASK_REFRESH_MARTS` failed and `TASK_REFRESH_FRAUD_SCORES` consequently
+  never ran at all (its `AFTER` dependency was never satisfied, so it leaves no failed row
+  of its own)
+- A failed task currently only shows up indirectly, e.g. as `CONFIRMED_FRAUD_OUTCOMES` not
+  growing or `VW_ACCOUNT_VELOCITY_TRIAGE_QUEUE` going thin (see `docs/runbook.md`'s Common
+  incidents table) — this gives on-call a direct view of the failure itself, mirroring the
+  `adf_pipeline_failure` log-based alert one layer down the stack for the warehouse side of
+  the pipeline instead of the orchestration side
+- Documented both views in `docs/data_dictionary.md`; added the bootstrap step, a Daily
+  operation task-failure-review bullet, and a Common incidents row to `docs/runbook.md`
+
 ## 2026-10-28 — Direct unit tests for the serving endpoint's readiness poll and scoring call
 
 - Added `tests/test_serving.py::test_wait_until_ready_returns_status_once_ready`,
