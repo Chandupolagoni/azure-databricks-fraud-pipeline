@@ -4,6 +4,23 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-11-02 — Snowflake-native alert on top of the task failure monitor view
+
+- Added `snowflake/alerts/01_create_task_failure_alert.sql`: `ALERT_TASK_FAILURE` polls
+  `MARTS.VW_TASK_FAILURE_MONITOR` hourly and emails on-call via `SYSTEM$SEND_EMAIL` when a
+  failed `TASK_REFRESH_MARTS`/`TASK_REFRESH_FRAUD_SCORES`/`TASK_RECONCILE_FRAUD_OUTCOMES`
+  run falls within its trailing 180-minute check window (one schedule interval plus
+  `ACCOUNT_USAGE.TASK_HISTORY`'s ~120-minute replication lag, so a newly-visible failure is
+  never caught only to then scroll out of the window before the next check)
+- `VW_TASK_FAILURE_MONITOR`'s own header comment (2026-10-29) called this out as the next
+  step — the view only helped an operator who already thought to go look; this makes the
+  warehouse-side task graph page on-call directly, the same way `adf_pipeline_failure`
+  (terraform/modules/monitoring) already does one layer up the stack for ADF pipeline runs
+- Documented the alert in `docs/data_dictionary.md`; added the `task_failure_alert_notify`
+  notification integration as an out-of-band ACCOUNTADMIN bootstrap step and the alert
+  script to the Snowflake bootstrap order in `docs/runbook.md`, and noted in the existing
+  task-failure-review bullet that the alert is now the primary way a failure is noticed
+
 ## 2026-10-29 — Task failure monitor view for the warehouse-side task graph
 
 - Added `snowflake/ddl/11_create_task_failure_monitor_view.sql`:

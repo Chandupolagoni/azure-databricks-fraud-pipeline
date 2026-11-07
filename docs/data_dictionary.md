@@ -142,3 +142,8 @@ pulled from `SNOWFLAKE.ACCOUNT_USAGE.TASK_HISTORY`. See DDL in
 `TASK_REFRESH_FRAUD_SCORES` consequently never ran (its `AFTER` dependency was never
 satisfied, so it produces no row of its own rather than a second failure) — see
 `docs/runbook.md`'s Daily operation section.
+
+`ALERT_TASK_FAILURE` (`snowflake/alerts/01_create_task_failure_alert.sql`) runs hourly
+against this same view and emails on-call via `SYSTEM$SEND_EMAIL` when a failed run falls
+within its trailing-180-minute check window, so a failure no longer waits on someone to
+think to query the view — see `docs/runbook.md`'s Daily operation section.
