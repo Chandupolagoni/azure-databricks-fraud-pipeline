@@ -10,7 +10,7 @@
    terraform plan -var-file=environments/dev.tfvars
    terraform apply -var-file=environments/dev.tfvars
    ```
-3. **Populate Key Vault secrets** (out-of-band, not via Terraform state): Snowflake loader password, landing storage connection string, Databricks PAT for ADF's linked service.
+3. **Populate Key Vault secrets** (out-of-band, not via Terraform state): Snowflake loader password, landing storage connection string, Databricks PAT for ADF's linked service. A Snowflake email notification integration (`task_failure_alert_notify`, used by `ALERT_TASK_FAILURE` below) is provisioned the same way, by ACCOUNTADMIN, ahead of running `snowflake/alerts/01_create_task_failure_alert.sql`.
 4. **Databricks workspace bootstrap**:
    - Attach this repo via Databricks Repos (`/Repos/fraud-platform`)
    - Job deployment (`databricks/jobs/job_config.json` and `databricks/jobs/drift_monitor_job_config.json`) is handled by the
@@ -32,6 +32,7 @@
    snowsql -f snowflake/ddl/09_create_model_confusion_matrix_view.sql
    snowsql -f snowflake/ddl/10_create_chargeback_reconciliation_lag_view.sql
    snowsql -f snowflake/ddl/11_create_task_failure_monitor_view.sql
+   snowsql -f snowflake/alerts/01_create_task_failure_alert.sql
    snowsql -f snowflake/procedures/sp_load_fraud_marts.sql
    snowsql -f snowflake/procedures/sp_reconcile_fraud_outcomes.sql
    snowsql -f snowflake/snowpipe/pipe_transactions.sql
@@ -58,7 +59,7 @@
 - Secret access review: Key Vault reads/writes land in the same workspace, e.g. `AzureDiagnostics | where ResourceProvider == "MICROSOFT.KEYVAULT" | where Category == "AuditEvent" | where TimeGenerated > ago(1d)` — useful when a credential needs to be rotated and the on-call needs to confirm which identities (Terraform deployer, Databricks secret-scope reads) actually touched it recently.
 - Pipeline run audit review: ADF activity/pipeline/trigger runs land in the same workspace, e.g. `ADFActivityRun | where TimeGenerated > ago(1d) | where Status == "Failed"` — useful for correlating a failed `pl_ingest_raw_transactions` run against the Key Vault secret reads and Databricks job runs it triggered, all from the one workspace instead of stitching together three separate activity logs.
 - ADF pipeline failure alert: `alert-<name_prefix>-adf-pipeline-failure` pages the same action group as the mass-blob-delete alert the moment failed `PipelineRuns` exceed `adf_pipeline_failure_alert_threshold` in a `adf_pipeline_failure_alert_window_minutes` window (default: any failure, immediately) — on-call should not need to wait for the pipeline-run audit review above to notice a failure.
-- Task failure review: `SELECT * FROM FRAUD_PLATFORM.MARTS.VW_TASK_FAILURE_MONITOR` lists any `TASK_REFRESH_MARTS`/`TASK_REFRESH_FRAUD_SCORES`/`TASK_RECONCILE_FRAUD_OUTCOMES` run that failed in the trailing 7 days (subject to `ACCOUNT_USAGE`'s normal replication lag, up to ~2 hours) — the warehouse-side counterpart to the ADF pipeline-failure alert above, since a failed task otherwise only surfaces indirectly via a stalled downstream table. `VW_TASK_FAILURE_CASCADE_CHECK` flags the case where `TASK_REFRESH_MARTS` failed and `TASK_REFRESH_FRAUD_SCORES` never ran as a result (its `AFTER` dependency was never satisfied), which looks identical to "nothing to do today" unless you check the root task first.
+- Task failure review: `SELECT * FROM FRAUD_PLATFORM.MARTS.VW_TASK_FAILURE_MONITOR` lists any `TASK_REFRESH_MARTS`/`TASK_REFRESH_FRAUD_SCORES`/`TASK_RECONCILE_FRAUD_OUTCOMES` run that failed in the trailing 7 days (subject to `ACCOUNT_USAGE`'s normal replication lag, up to ~2 hours) — the warehouse-side counterpart to the ADF pipeline-failure alert above, since a failed task otherwise only surfaces indirectly via a stalled downstream table. `VW_TASK_FAILURE_CASCADE_CHECK` flags the case where `TASK_REFRESH_MARTS` failed and `TASK_REFRESH_FRAUD_SCORES` never ran as a result (its `AFTER` dependency was never satisfied), which looks identical to "nothing to do today" unless you check the root task first. `ALERT_TASK_FAILURE` (`snowflake/alerts/01_create_task_failure_alert.sql`) now checks `VW_TASK_FAILURE_MONITOR` hourly and emails on-call directly, so this is primarily for digging into a failure the alert already surfaced rather than the first way it's noticed.
 
 ## Retraining the fraud model
 
