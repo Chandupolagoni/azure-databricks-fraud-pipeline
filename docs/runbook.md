@@ -32,6 +32,7 @@
    snowsql -f snowflake/ddl/09_create_model_confusion_matrix_view.sql
    snowsql -f snowflake/ddl/10_create_chargeback_reconciliation_lag_view.sql
    snowsql -f snowflake/ddl/11_create_task_failure_monitor_view.sql
+   snowsql -f snowflake/ddl/12_create_ingestion_freshness_monitor_view.sql
    snowsql -f snowflake/procedures/sp_load_fraud_marts.sql
    snowsql -f snowflake/procedures/sp_reconcile_fraud_outcomes.sql
    snowsql -f snowflake/snowpipe/pipe_transactions.sql
@@ -59,6 +60,7 @@
 - Pipeline run audit review: ADF activity/pipeline/trigger runs land in the same workspace, e.g. `ADFActivityRun | where TimeGenerated > ago(1d) | where Status == "Failed"` — useful for correlating a failed `pl_ingest_raw_transactions` run against the Key Vault secret reads and Databricks job runs it triggered, all from the one workspace instead of stitching together three separate activity logs.
 - ADF pipeline failure alert: `alert-<name_prefix>-adf-pipeline-failure` pages the same action group as the mass-blob-delete alert the moment failed `PipelineRuns` exceed `adf_pipeline_failure_alert_threshold` in a `adf_pipeline_failure_alert_window_minutes` window (default: any failure, immediately) — on-call should not need to wait for the pipeline-run audit review above to notice a failure.
 - Task failure review: `SELECT * FROM FRAUD_PLATFORM.MARTS.VW_TASK_FAILURE_MONITOR` lists any `TASK_REFRESH_MARTS`/`TASK_REFRESH_FRAUD_SCORES`/`TASK_RECONCILE_FRAUD_OUTCOMES` run that failed in the trailing 7 days (subject to `ACCOUNT_USAGE`'s normal replication lag, up to ~2 hours) — the warehouse-side counterpart to the ADF pipeline-failure alert above, since a failed task otherwise only surfaces indirectly via a stalled downstream table. `VW_TASK_FAILURE_CASCADE_CHECK` flags the case where `TASK_REFRESH_MARTS` failed and `TASK_REFRESH_FRAUD_SCORES` never ran as a result (its `AFTER` dependency was never satisfied), which looks identical to "nothing to do today" unless you check the root task first.
+- Ingestion freshness review: `SELECT * FROM FRAUD_PLATFORM.MARTS.VW_INGESTION_FRESHNESS_ALERT_QUEUE` lists any RAW table whose Snowpipe landing has gone quiet past its expected cadence (180 minutes for the event-driven `RAW_TRANSACTIONS`, 1620 minutes for the once-daily `RAW_FRAUD_FEATURES`) — this is the Snowpipe-side counterpart to the task failure review above, since a suspended pipe or an expired storage integration credential produces no row in `ACCOUNT_USAGE.TASK_HISTORY` at all.
 
 ## Retraining the fraud model
 
@@ -78,6 +80,7 @@ Review the MLflow run in the tracking UI; if `auc_pr` clears the gate the model 
 | `ForEachSourceFile` runs zero iterations (no copy failures, but nothing lands in `raw/`) | `landing/_control/manifest_<ingestDate>.json` is missing, empty, or wasn't refreshed for today | Confirm the landing export job wrote today's manifest with an entry per expected `sourceSystem` before `tr_daily_schedule` fired; re-run `pl_ingest_raw_transactions` once it's in place |
 | Databricks job stuck / OOM | Skewed partition or undersized job cluster | Check Spark UI stage metrics; consider raising `autoscale.max_workers` in `job_config.json` |
 | Snowpipe not ingesting new files | Event Grid notification integration misconfigured | `ALTER PIPE ... REFRESH` to manually backfill, then check the notification integration |
+| `VW_INGESTION_FRESHNESS_ALERT_QUEUE` shows `RAW_TRANSACTIONS`/`RAW_FRAUD_FEATURES` as stale | Same root causes as the row above, caught by watermark age instead of waiting for a downstream symptom | `SELECT SYSTEM$PIPE_STATUS('PIPE_RAW_TRANSACTIONS')` / `PIPE_RAW_FRAUD_FEATURES`; `ALTER PIPE ... REFRESH` once the underlying cause is fixed |
 | `TASK_REFRESH_MARTS` not running | Task suspended or stream has no new data | `SHOW TASKS`, `SELECT SYSTEM$STREAM_HAS_DATA(...)` |
 | `CONFIRMED_FRAUD_OUTCOMES` not growing | `TASK_RECONCILE_FRAUD_OUTCOMES` suspended, or no settlement files have landed in `raw/chargebacks/` | `SHOW TASKS LIKE 'TASK_RECONCILE_FRAUD_OUTCOMES'`; `ALTER PIPE PIPE_RAW_CHARGEBACK_OUTCOMES REFRESH` to manually backfill |
 | Old raw-zone files unexpectedly in Cool/Archive tier | Lifecycle management policy tiering working as intended, not a fault | Rehydrate via `az storage blob set-tier --tier Hot` before reading if a job needs Hot-tier latency; adjust `raw_zone_cool_tier_after_days`/`raw_zone_archive_after_days` in the environment tfvars if the schedule is too aggressive |

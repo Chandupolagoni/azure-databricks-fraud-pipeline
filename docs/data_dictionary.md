@@ -142,3 +142,20 @@ pulled from `SNOWFLAKE.ACCOUNT_USAGE.TASK_HISTORY`. See DDL in
 `TASK_REFRESH_FRAUD_SCORES` consequently never ran (its `AFTER` dependency was never
 satisfied, so it produces no row of its own rather than a second failure) — see
 `docs/runbook.md`'s Daily operation section.
+
+## Snowflake: `MARTS.VW_INGESTION_FRESHNESS_MONITOR`, `MARTS.VW_INGESTION_FRESHNESS_ALERT_QUEUE`
+
+Checks `RAW.RAW_TRANSACTIONS` and `RAW.RAW_FRAUD_FEATURES` against their own `_loaded_at`
+watermark to catch a stalled Snowpipe before it shows up indirectly downstream. See DDL in
+`snowflake/ddl/12_create_ingestion_freshness_monitor_view.sql`.
+
+| Column | Type | Description |
+|---|---|---|
+| table_name | string | `RAW_TRANSACTIONS` or `RAW_FRAUD_FEATURES` |
+| last_loaded_at | timestamp | `MAX(_loaded_at)` for that table; `NULL` if the table has never received a row |
+| minutes_since_last_load | number | Minutes between `last_loaded_at` and now |
+| expected_max_gap_minutes | number | 180 for `RAW_TRANSACTIONS` (continuous event-driven ingest); 1620 for `RAW_FRAUD_FEATURES` (daily batch landing plus buffer) |
+| is_stale | boolean | `TRUE` if `minutes_since_last_load` exceeds `expected_max_gap_minutes`, or no row has ever loaded |
+
+`VW_INGESTION_FRESHNESS_ALERT_QUEUE` is `VW_INGESTION_FRESHNESS_MONITOR` filtered to
+`is_stale`, worst gap first — see `docs/runbook.md`'s Daily operation section.
