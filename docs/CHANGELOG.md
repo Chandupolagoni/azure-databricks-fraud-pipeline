@@ -4,6 +4,23 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-11-10 — Ingestion freshness monitor for the Snowpipe landing step
+
+- Added `snowflake/ddl/12_create_ingestion_freshness_monitor_view.sql`:
+  `MARTS.VW_INGESTION_FRESHNESS_MONITOR` checks `RAW.RAW_TRANSACTIONS` and
+  `RAW.RAW_FRAUD_FEATURES` against their own `_loaded_at` watermark and flags a table whose
+  landing has gone quiet past its expected cadence (180 minutes for the event-driven
+  `RAW_TRANSACTIONS`, 1620 minutes for the once-daily `RAW_FRAUD_FEATURES`);
+  `VW_INGESTION_FRESHNESS_ALERT_QUEUE` is the filtered, worst-gap-first triage queue
+- `VW_TASK_FAILURE_MONITOR` (2026-10-29) covers the warehouse-side task graph and
+  `adf_pipeline_failure` covers the orchestration side, but the Snowpipe auto-ingest step
+  between them had no failure trail of its own — a pipe is not a task, so a suspended pipe
+  or an expired storage integration credential never produces an `ACCOUNT_USAGE.TASK_HISTORY`
+  row, and previously only showed up once a downstream task or view went thin
+- Documented both views in `docs/data_dictionary.md`; added the bootstrap step, a Daily
+  operation ingestion-freshness-review bullet, and a Common incidents row to
+  `docs/runbook.md`
+
 ## 2026-10-29 — Task failure monitor view for the warehouse-side task graph
 
 - Added `snowflake/ddl/11_create_task_failure_monitor_view.sql`:
