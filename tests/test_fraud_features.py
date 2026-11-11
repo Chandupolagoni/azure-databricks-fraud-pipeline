@@ -11,6 +11,7 @@ from pyspark.sql import SparkSession  # noqa: E402
 from pyspark.sql import functions as F  # noqa: E402
 
 from transformations.fraud_features import (  # noqa: E402
+    add_amount_deviation_feature,
     add_device_reuse_feature,
     add_geo_velocity_feature,
     add_merchant_risk_score,
@@ -56,3 +57,31 @@ def test_merchant_risk_score_fills_default_when_missing(spark):
 
     out = add_merchant_risk_score(txns, lookup).collect()[0]
     assert out["merchant_risk_score"] == 0.5
+
+
+def test_amount_deviation_flags_outlier_for_account_history(spark):
+    df = spark.createDataFrame(
+        [
+            ("a1", "t1", "2024-01-01 00:00:00", 20.0),
+            ("a1", "t2", "2024-01-02 00:00:00", 25.0),
+            ("a1", "t3", "2024-01-03 00:00:00", 22.0),
+            ("a1", "t4", "2024-01-04 00:00:00", 2000.0),  # wildly out of character for a1
+        ],
+        ["account_id", "transaction_id", "transaction_ts", "amount"],
+    ).withColumn("transaction_ts", F.to_timestamp("transaction_ts"))
+
+    out = {row["transaction_id"]: row for row in add_amount_deviation_feature(df).collect()}
+    assert out["t4"]["is_amount_outlier"] is True
+    assert out["t1"]["is_amount_outlier"] is False
+    assert out["t2"]["is_amount_outlier"] is False
+
+
+def test_amount_deviation_does_not_flag_first_transaction(spark):
+    # Only one prior observation in the window -> stddev is null/zero, not an outlier by default.
+    df = spark.createDataFrame(
+        [("a1", "t1", "2024-01-01 00:00:00", 500.0)],
+        ["account_id", "transaction_id", "transaction_ts", "amount"],
+    ).withColumn("transaction_ts", F.to_timestamp("transaction_ts"))
+
+    out = add_amount_deviation_feature(df).collect()[0]
+    assert out["is_amount_outlier"] is False

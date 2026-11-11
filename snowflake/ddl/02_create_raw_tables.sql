@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS RAW_FRAUD_FEATURES (
   txn_amount_sum_24h                NUMBER(18,2),
   is_impossible_travel              BOOLEAN,
   distinct_accounts_per_device_24h  NUMBER,
+  is_amount_outlier                 BOOLEAN,
   merchant_risk_score               FLOAT,
   _loaded_at                        TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
 );
