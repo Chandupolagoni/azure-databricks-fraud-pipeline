@@ -4,6 +4,23 @@ All notable changes to this project are documented here. Dates are the week the 
 
 ## [Unreleased]
 
+## 2026-11-11 — Per-account amount-deviation fraud feature
+
+- Added `add_amount_deviation_feature` to `databricks/src/transformations/fraud_features.py`:
+  computes a trailing 30-day per-account mean/stddev of transaction `amount` and flags a
+  transaction as `is_amount_outlier` when it's more than `OUTLIER_ZSCORE_THRESHOLD` (3.0)
+  standard deviations above that account's own history. The existing velocity features
+  (`txn_count_*`, `txn_amount_sum_*`) catch unusually *many* or unusually *large-in-aggregate*
+  transactions over a window, but miss a single transaction that's simply out of character in
+  size for that specific account's normal spending — one large purchase barely moves a 24h sum.
+  Wired into `build_fraud_feature_set` alongside the other per-transaction features.
+- Added `is_amount_outlier BOOLEAN` to `RAW_FRAUD_FEATURES` in
+  `snowflake/ddl/02_create_raw_tables.sql`, alongside the other boolean feature flags already
+  landed there (`is_impossible_travel`).
+- Added `tests/test_fraud_features.py` coverage for the outlier case and for an account's
+  first-ever transaction (undefined stddev, left unflagged rather than treated as an outlier
+  by default).
+
 ## 2026-10-29 — Task failure monitor view for the warehouse-side task graph
 
 - Added `snowflake/ddl/11_create_task_failure_monitor_view.sql`:
